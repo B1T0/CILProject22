@@ -5,13 +5,18 @@ from torch.utils.data import DataLoader, Dataset, IterableDataset
 import pandas as pd
 
 
+def collate_tuples(batch):
+    # print(batch)
+    batch = list(zip(*batch))
+    batch[0] = torch.stack(batch[0])
+    # print(batch[0].size())
+    return tuple(batch)
+
+
 class Graph_Dataset(Dataset):
     """
     while theoretically an iterable dataset, abusing Dataset API
     works out to smoother implementation
-
-    if necessary, it is possible to get gradients with regards to sparse COO matrix
-    using torch.sparse.mm
     """
 
     def __init__(self, file_path, n_users, n_items, identity=False, binary=False):
@@ -28,9 +33,10 @@ class Graph_Dataset(Dataset):
         values = []
         self.identity = identity
         self.binary = binary
-
         for i, x in df.iterrows():
             name, val = x['Id'], x['Prediction']
+            if binary:
+                val = 1
             movie, user = name.replace('c', '').replace('r', '').split('_')
             movie, user = int(movie), int(user)
             indices_i.append(user)
@@ -41,13 +47,6 @@ class Graph_Dataset(Dataset):
             indices_j.append(user)
             values.append(val)
         # l.append([user, movie + n_users])
-        self.graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
-                                             torch.tensor(values), size=[self.n, self.n]).coalesce()
-
-        if binary:
-            self.binary_graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
-                                                        torch.ones(size=(self.len * 2,)),
-                                                        size=[self.n, self.n]).coalesce()
         if identity:
             for i in range(n_users):
                 indices_j.append(i)
@@ -57,12 +56,8 @@ class Graph_Dataset(Dataset):
                 indices_i.append(i + n_users)
                 indices_j.append(i + n_users)
                 values.append(1)
-            self.identity_graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
-                                                          torch.tensor(values), size=[self.n, self.n]).coalesce()
-            if binary:
-                self.binary_identity_graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
-                                                                     torch.ones(size=(self.len * 2,)),
-                                                                     size=[self.n, self.n]).coalesce()
+        self.graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
+                                             torch.tensor(values), size=[self.n, self.n]).coalesce()
 
     def __len__(self):
         return self.len
