@@ -19,11 +19,11 @@ class Graph_Dataset(Dataset):
     works out to smoother implementation
     """
 
-    def __init__(self, file_path, n_users, n_items):
+    def __init__(self, file_path, n_users, n_items, identity=False, binary=False):
         super(Graph_Dataset, self).__init__()
         df = pd.read_csv(file_path)
 
-        #self.graph = torch.sparse_coo_tensor()
+        # self.graph = torch.sparse_coo_tensor()
         self.len = len(df)
         self.n_users = n_users
         self.n_items = n_items
@@ -32,8 +32,12 @@ class Graph_Dataset(Dataset):
         indices_i = []
         indices_j = []
         values = []
+        self.identity = identity
+        self.binary = binary
         for i, x in df.iterrows():
             name, val = x['Id'], x['Prediction']
+            if binary:
+                val = 1
             movie, user = name.replace('c', '').replace('r', '').split('_')
             movie, user = int(movie), int(user)
             indices_i.append(user)
@@ -43,13 +47,16 @@ class Graph_Dataset(Dataset):
             indices_i.append(movie + n_users)
             indices_j.append(user)
             values.append(val)
-           # l.append([user, movie + n_users])
-        # for i in range(n_users):
-        #     indices_j.append(i)
-        #     indices_i.append(i)
-        #     values.append(1)
-        # for i in range(n_items):
-        #     indices_j.append()
+        # l.append([user, movie + n_users])
+        if identity:
+            for i in range(n_users):
+                indices_j.append(i)
+                indices_i.append(i)
+                values.append(1)
+            for i in range(n_items):
+                indices_i.append(i + n_users)
+                indices_j.append(i + n_users)
+                values.append(1)
         self.graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
                                              torch.tensor(values), size=[self.n, self.n]).coalesce()
 
