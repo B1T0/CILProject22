@@ -88,7 +88,7 @@ class Triplet_Dataset(Graph_Dataset):
         #not k-neighbors of item
         y_negative = torch.multinomial(w, num_samples=self.m)
 
-        return self.binary_graph.indices()[:, idx], x_n, y_n, x_negative, y_negative, neg_idx
+        return self.binary_graph.indices()[0, idx], self.binary_graph.indices()[1, idx], x_n, y_n, x_negative, y_negative, neg_idx[0], neg_idx[1]
 
 
 class Graph_DataModule(pl.LightningDataModule):
