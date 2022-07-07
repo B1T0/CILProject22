@@ -32,7 +32,7 @@ class Graph_Dataset(Dataset):
         for i, x in df.iterrows():
             name, val = x['Id'], x['Prediction']
             movie, user = name.replace('c', '').replace('r', '').split('_')
-            movie, user = int(movie), int(user)
+            movie, user = int(movie)-1, int(user)-1
             indices_i.append(user)
             indices_j.append(movie + n_users)
             values.append(val)
