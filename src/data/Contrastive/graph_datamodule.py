@@ -19,15 +19,6 @@ import time
 #     # print(batch[0].size())
 #     return tuple(batch)
 
-def vector_to_edge_idx(a):
-    row = a.div(11000, rounding_mode='floor')
-    col = a % 11000
-    return row.long(), col.long()  # for some reason casting did not work
-
-
-def edge_idx_to_vector(a):
-    row, col = a
-    return row * 11000 + col
 
 
 class Triplet_Dataset(Graph_Dataset):
@@ -38,12 +29,15 @@ class Triplet_Dataset(Graph_Dataset):
     probably should have been implemented as iter
     """
 
-    def __init__(self, file_path, n_users, n_items, k, length=100000, device='cuda:0'):
+    def __init__(self, file_path, n_users, n_items, k,  device='cuda:0'):
         super(Triplet_Dataset, self).__init__(file_path, n_users, n_items, False, True)
-        self.degrees = torch.sparse.sum(self.binary_graph)
-        self.anti_degrees = torch.ones(n_users + n_items) * (n_users + n_items -1) -self.degrees
+        self.degrees = torch.sparse.sum(self.binary_graph, dim=1).to_dense()
+        print(self.degrees.size())
+        self.anti_degrees = torch.ones_like(self.degrees) * (self.n -1) - self.degrees
+        print(torch.min(self.anti_degrees))
+        print(torch.max(self.anti_degrees))
         self.len = len(self.binary_graph.indices()[0])
-
+        print(self.len)
         self.binary_graph = self.binary_graph
         self.k_neighborhood = self.binary_graph
 
@@ -61,24 +55,28 @@ class Triplet_Dataset(Graph_Dataset):
         self.device = device
         self.m = 5
         self.sampler = torch.distributions.categorical.Categorical(
-            torch.ones(11000)
+            torch.ones(self.n)
         )
         self.indices = self.binary_graph.indices()#.to(device)
         self.neighborhood = self.binary_graph.to_sparse_csr()
         self.neighborhood_col = self.neighborhood.col_indices()
         self.neighborhood_crow = self.neighborhood.crow_indices()
 
-        self.edge_indices = edge_idx_to_vector(self.indices)
+        #self.edge_indices = self.edge_idx_to_vector(self.indices)
         self.col_indices = self.k_neighborhood.col_indices()#.to(device)
         self.crow_indices = self.k_neighborhood.crow_indices()#.to(device)
-
-    def reset(self):
-        self.sampler = BatchSampler(WeightedRandomSampler(self.degrees, self.n, replacement=True), 3, drop_last=True)
-        self.batches = torch.tensor(list(self.sampler))
 
     def __len__(self):
         return self.len
 
+    def vector_to_edge_idx(self, a):
+        row = a.div(self.n, rounding_mode='floor')
+        col = a % self.n
+        return row.long(), col.long()  # for some reason casting did not work
+
+    def edge_idx_to_vector(self, a):
+        row, col = a
+        return row * self.n + col
 
     def negative_edges(self):
         # neg_idx = None
@@ -109,7 +107,7 @@ class Triplet_Dataset(Graph_Dataset):
         for x in range(len(row)):
             x_neighbors = self.neighborhood_col[
                           self.neighborhood_crow[x]:self.neighborhood_crow[x + 1]]
-            w = torch.ones(11000)
+            w = torch.ones(self.n)
             w[x_neighbors] = 0
             w[x] = 0
             # not k-neighbors of user
@@ -119,33 +117,30 @@ class Triplet_Dataset(Graph_Dataset):
 
     def __getitem__(self, idx):
         x, y = self.indices[:, idx]
-
-        #t = time.time()
+        if x >= self.n_users:
+            x, y = y, x
+        #neighborhood retrieval & sampling
         x_neighbors = self.col_indices[
                       self.crow_indices[x]:self.crow_indices[x + 1]]
 
         y_neighbors = self.col_indices[
                       self.crow_indices[y]:self.crow_indices[y + 1]]
-        #t1 = time.time()
-        #print(f'Retrieving neighbors {t1-t}')
+
         x_n = x_neighbors[torch.multinomial(torch.ones_like(x_neighbors).float(), num_samples=self.num_samples)]
         y_n = y_neighbors[torch.multinomial(torch.ones_like(y_neighbors).float(), num_samples=self.num_samples)]
-        #t2 = time.time()
-        #print(f'Sampling neighbors{t2-t1}')
 
-        #t3 = time.time()
+        #negative edge sampling
         row, col = self.negative_edges()
-        #print(f'Sampling negative edges {t3-t2}')
-        w = torch.ones(11000)
+
+        w = torch.ones(self.n)
         w[x_neighbors] = 0
         # not k-neighbors of user
         x_negative = torch.multinomial(w, num_samples=self.m)
-        w = torch.ones(11000)
+        w = torch.ones(self.n)
         w[y_neighbors] = 0
-        # not k-neighbors of item
+        # negative k_neighbors: k-neighbors of item
         y_negative = torch.multinomial(w, num_samples=self.m)
-        #t4= time.time()
-        #print(f'Sampling negative neighbors {t4-t3}')
+
         return x, y, x_n, y_n, x_negative, \
                y_negative, row, col
 

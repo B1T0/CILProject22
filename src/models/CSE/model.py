@@ -14,7 +14,10 @@ class Model(pl.LightningModule):
         self.phi_UC = nn.Embedding(11000, embedding_dim)
         self.lr = 0.01
         self.loss_mse = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        #self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        self.alpha = 0.05
+        self.lam = 0.1
+        self.lav = 0.025
 
     def forward(self, x):
         self.phi(x)
@@ -23,7 +26,12 @@ class Model(pl.LightningModule):
         return self.phi(x), self.phi_IC(x), self.phi_UC(x)
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        return torch.optim.SGD([
+            {'params': self.phi.parameters(), 'weight_decay': self.lav, 'lr': self.lr},
+            {'params': self.phi_IC.parameters()},
+            {'params': self.phi_UC.parameters()}
+        ], lr=self.lr, momentum=0.9)
+        #return torch.optim.Adam(self.parameters(), lr=self.lr)
 
     def training_step(self, train_batch, batch_idx):
         # for i, x in enumerate(train_batch):
@@ -51,6 +59,7 @@ class Model(pl.LightningModule):
 
         loss = self.loss(phi_x, phi_y, phi_IC, phi_UC, phi_IC_negative, phi_UC_negative,
                          phi_negative_x, phi_negative_y)
+
         self.log("Training Loss", loss)
         return loss
 
@@ -83,10 +92,7 @@ class Model(pl.LightningModule):
 
     def loss(self, phi_user, phi_item,  phis_IC, phis_UC, phi_IC_negative,
              phi_UC_negative, phi_negative_x, phi_negative_y):  # implement the loss function
-        alpha = 0.1
-        lam = 0.1
 
-        reg = 1.0
         #loss is probably log sigmoid
         #should be able to modify direct similarity as needed
         #for the implicit feedback however, it is log-sigmoid
@@ -101,6 +107,7 @@ class Model(pl.LightningModule):
         for i in range(len(phi_IC_negative)):
             loss_NS += torch.mean(F.logsigmoid(torch.sum(torch.mul(phi_item, phi_IC_negative[i]), dim=1)))
             loss_NS += torch.mean(F.logsigmoid(torch.sum(torch.mul(phi_user, phi_UC_negative[i]), dim=1)))
-        # norm =    only for overfitting
-        loss = alpha * (loss_DS + lam * loss_NS)  # + reg*norm)
+        # for w in self.phi.weight:
+        #     norm += torch.norm(w)
+        loss = self.alpha * (loss_DS + self.lam * loss_NS)  # + reg*norm)
         return loss

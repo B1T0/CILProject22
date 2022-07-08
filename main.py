@@ -23,8 +23,9 @@ def main():
     print('Moving model to cuda')
     model = model.to('cuda:0')
     optimizer = model.configure_optimizers()
+    print(optimizer)
     run_id = time.strftime("%Y%m%d-%H%M%S")
-    log_dir = f"/home/jimmy/CILProject22/reports/logs/{run_id}_pretrain"
+    log_dir = f"/home/jimmy/CILProject22/reports/logs/{run_id}_pretrain_norm_sgd"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
         # Create logging file
@@ -55,6 +56,8 @@ def main():
         with torch.no_grad():
             val_loss = 0
             for batch in tqdm(val_dataloader):
+                for i, x in enumerate(batch):
+                    batch[i] = x.to('cuda:0')
                 loss = model.validation_step(batch, batch_idx=0)
                 val_loss += loss
             print(f'Val Loss: {val_loss/len(val_dataloader)}')
