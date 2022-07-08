@@ -55,7 +55,7 @@ def main():
         with torch.no_grad():
             val_loss = 0
             for batch in tqdm(val_dataloader):
-                loss = model.val_step(batch, batch_idx=0)
+                loss = model.validation_step(batch, batch_idx=0)
                 val_loss += loss
             print(f'Val Loss: {val_loss/len(val_dataloader)}')
 

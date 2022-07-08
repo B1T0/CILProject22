@@ -41,6 +41,7 @@ class Triplet_Dataset(Graph_Dataset):
     def __init__(self, file_path, n_users, n_items, k, length=100000, device='cuda:0'):
         super(Triplet_Dataset, self).__init__(file_path, n_users, n_items, False, True)
         self.degrees = torch.sparse.sum(self.binary_graph)
+        self.anti_degrees = torch.ones(n_users + n_items) * (n_users + n_items -1) -self.degrees
         self.len = len(self.binary_graph.indices()[0])
 
         self.binary_graph = self.binary_graph
@@ -103,18 +104,18 @@ class Triplet_Dataset(Graph_Dataset):
         # row, col = vector_to_edge_idx(neg_idx)
         # return row, col
         #implicit assumption that every user has a negative edge
-        row = torch.multinomial(torch.ones(11000), num_samples=self.m)
+        row = torch.multinomial(self.anti_degrees, num_samples=self.m)
         col = []
         for x in range(len(row)):
             x_neighbors = self.neighborhood_col[
                           self.neighborhood_crow[x]:self.neighborhood_crow[x + 1]]
             w = torch.ones(11000)
             w[x_neighbors] = 0
+            w[x] = 0
             # not k-neighbors of user
             x_negative = torch.multinomial(w, num_samples=1)
             col.append(x_negative)
         return row, torch.tensor(col)
-
 
     def __getitem__(self, idx):
         x, y = self.indices[:, idx]
