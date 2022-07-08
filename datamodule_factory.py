@@ -5,15 +5,14 @@ Create dataloaders depending on settings in config.py
 from config import config
 from src.models.hyperparameters import params
 from src.data.FIRST.first_datamodule import FIRST_DataModule
+from src.data.Contrastive.graph_datamodule import Graph_DataModule
 from pathlib import Path
 
 
 def get_datamodule():
-    if config['dataset'] == 'first':
-        return FIRST_DataModule(
-            word_length=params[config['model']]['word_length'],
-            len = params[config['model']]['len'],
-            leq = params[config['model']]['leq'],
+    if config['dataset'] == 'contrastive':
+        return Graph_DataModule(
+            params[config['model']]['file_path'],
             batch_size=params[config['model']]['batch_size']
             )
     else:

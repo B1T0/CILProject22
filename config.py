@@ -13,18 +13,18 @@ config['mode'] = 'train'  # 'train' or 'eval'
 """
 Data related settings 
 """
-config['dataset'] = 'FIRST'  # options: sleep-edf-153, ...
+config['dataset'] = 'contrastive'  # options: sleep-edf-153, ...
 # load input size from json file of the dataset 
-with open(f"data/processed/{config['dataset']}/info.json") as f:
-    data = json.load(f)
-    config['input_width'] =  data['input_width'] 
-    config['input_height'] = data['input_height']
+# with open(f"data/processed/{config['dataset']}/info.json") as f:
+#     data = json.load(f)
+#     config['input_width'] =  data['input_width']
+#     config['input_height'] = data['input_height']
 
 """
 Model related settings 
 Available models: Acceptor
 """
-config['model'] = 'Acceptor'
+config['model'] = 'Contrastive_Pretraining'
 
 """
 Training related settings

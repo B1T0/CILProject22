@@ -2,3 +2,6 @@
 venv/
 *.csv
 __pycache__/
+reports/logs/*
+.idea/*
+
