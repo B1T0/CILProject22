@@ -8,7 +8,7 @@ params = {
 
     'Contrastive_Pretraining': {
         'lr': 1e-4,
-        'batch_size': 16,
+        'batch_size': 4,
         'epochs': 200,
         #backbone
         'embedding_dim': 50,

@@ -5,9 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class model(pl.LightningModule):
+class Model(pl.LightningModule):
     def __init__(self, embedding_dim=50):
-        super(model, self).__init__()
+        super(Model, self).__init__()
         self.embedding_dim = embedding_dim
         self.phi = nn.Embedding(11000, embedding_dim)
         self.phi_IC = nn.Embedding(11000, embedding_dim)
@@ -23,9 +23,11 @@ class model(pl.LightningModule):
         return self.phi(x), self.phi_IC(x), self.phi_UC(x)
 
     def configure_optimizers(self):
-        return torch.optim.SparseAdam(self.parameters(), lr=self.lr)
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
 
     def training_step(self, train_batch, batch_idx):
+        # for i, x in enumerate(train_batch):
+        #     train_batch[i] = x.to(cu)
         x, y, x_neighbors, y_neighbors, x_negative, y_negative, negative_x, negative_y = train_batch
 
         # if x >= 1000:
@@ -49,6 +51,7 @@ class model(pl.LightningModule):
 
         loss = self.loss(phi_x, phi_y, phi_IC, phi_UC, phi_IC_negative, phi_UC_negative,
                          phi_negative_x, phi_negative_y)
+        self.log("Training Loss", loss)
         return loss
 
     def validation_step(self, valid_batch, batch_idx):
@@ -75,6 +78,7 @@ class model(pl.LightningModule):
 
         loss = self.loss(phi_x, phi_y, phi_IC, phi_UC, phi_IC_negative, phi_UC_negative,
                          phi_negative_x, phi_negative_y)
+        self.log("Validation Loss", loss)
         return loss
 
     def loss(self, phi_user, phi_item,  phis_IC, phis_UC, phi_IC_negative,
