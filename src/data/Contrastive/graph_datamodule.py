@@ -65,6 +65,9 @@ class Triplet_Dataset(Graph_Dataset):
         #self.edge_indices = self.edge_idx_to_vector(self.indices)
         self.col_indices = self.k_neighborhood.col_indices()#.to(device)
         self.crow_indices = self.k_neighborhood.crow_indices()#.to(device)
+        self.values = self.k_neighborhood.values()
+        self.generator = torch.Generator()
+        self.generator.manual_seed(2495021)
 
     def __len__(self):
         return self.len
@@ -102,7 +105,7 @@ class Triplet_Dataset(Graph_Dataset):
         # row, col = vector_to_edge_idx(neg_idx)
         # return row, col
         #implicit assumption that every user has a negative edge
-        row = torch.multinomial(self.anti_degrees, num_samples=self.m)
+        row = torch.multinomial(self.anti_degrees, num_samples=self.m, generator=self.generator)
         col = []
         for x in range(len(row)):
             x_neighbors = self.neighborhood_col[
@@ -111,7 +114,7 @@ class Triplet_Dataset(Graph_Dataset):
             w[x_neighbors] = 0
             w[x] = 0
             # not k-neighbors of user
-            x_negative = torch.multinomial(w, num_samples=1)
+            x_negative = torch.multinomial(w, num_samples=1, generator=self.generator)
             col.append(x_negative)
         return row, torch.tensor(col)
 
@@ -123,11 +126,17 @@ class Triplet_Dataset(Graph_Dataset):
         x_neighbors = self.col_indices[
                       self.crow_indices[x]:self.crow_indices[x + 1]]
 
+        #for random walk simulation
+        x_values = self.values[self.crow_indices[x]:self.crow_indices[x+1]]
+
         y_neighbors = self.col_indices[
                       self.crow_indices[y]:self.crow_indices[y + 1]]
+        y_values = self.values[self.crow_indices[y]: self.crow_indices[y+1]]
 
-        x_n = x_neighbors[torch.multinomial(torch.ones_like(x_neighbors).float(), num_samples=self.num_samples)]
-        y_n = y_neighbors[torch.multinomial(torch.ones_like(y_neighbors).float(), num_samples=self.num_samples)]
+        x_n = x_neighbors[torch.multinomial(x_values, num_samples=self.num_samples,
+                                            generator=self.generator)]
+        y_n = y_neighbors[torch.multinomial(y_values.float(), num_samples=self.num_samples,
+                                            generator=self.generator)]
 
         #negative edge sampling
         row, col = self.negative_edges()
@@ -135,11 +144,11 @@ class Triplet_Dataset(Graph_Dataset):
         w = torch.ones(self.n)
         w[x_neighbors] = 0
         # not k-neighbors of user
-        x_negative = torch.multinomial(w, num_samples=self.m)
+        x_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
         w = torch.ones(self.n)
         w[y_neighbors] = 0
         # negative k_neighbors: k-neighbors of item
-        y_negative = torch.multinomial(w, num_samples=self.m)
+        y_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
 
         return x, y, x_n, y_n, x_negative, \
                y_negative, row, col

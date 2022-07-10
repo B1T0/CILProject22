@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 
 class Model(pl.LightningModule):
-    def __init__(self, embedding_dim=50):
+    def __init__(self, embedding_dim=100):
         super(Model, self).__init__()
         self.embedding_dim = embedding_dim
         self.phi = nn.Embedding(11000, embedding_dim)
