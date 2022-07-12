@@ -13,7 +13,7 @@ config['mode'] = 'train'  # 'train' or 'eval'
 """
 Data related settings 
 """
-config['dataset'] = 'contrastive'  # options: sleep-edf-153, ...
+config['dataset'] = 'user' # 'contrastive'  
 # load input size from json file of the dataset 
 # with open(f"data/processed/{config['dataset']}/info.json") as f:
 #     data = json.load(f)
@@ -24,7 +24,7 @@ config['dataset'] = 'contrastive'  # options: sleep-edf-153, ...
 Model related settings 
 Available models: Acceptor
 """
-config['model'] = 'Contrastive_Pretraining'
+config['model'] = 'AutoEncoder' # 'Contrastive_Pretraining'
 
 """
 Training related settings

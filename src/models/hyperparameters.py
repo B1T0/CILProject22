@@ -17,4 +17,10 @@ params = {
         'device': None
     },
 
+    'AutoEncoder': {
+        'lr': 1e-4, 
+        'batch_size': 16,
+        'file_path': 'data/raw/data_train.csv',
+    }
+
 }
