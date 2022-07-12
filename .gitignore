@@ -1,2 +1,7 @@
+*.DS_Store
+venv/
 *.csv
-.DS_Store
+__pycache__/
+reports/logs/*
+.idea/*
+
