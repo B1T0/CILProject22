@@ -4,16 +4,38 @@ import numpy as np
 import pandas as pd 
 from src.utils.utils import read_data 
 
-from torch.utils.data import random_split, DataLoader, TensorDataset
+from torch.utils.data import random_split, DataLoader, TensorDataset, dataset
 import torch 
 from sklearn.preprocessing import StandardScaler
 
 
-class User_DataModule(pl.LightningDataModule):
+class CrossDataset(dataset.Dataset):
     """
-    Data module where we sample each user's data from the dataset
+    Custom dataset to sample concatenated row i and column j over data matrix
     """
-    def __init__(self, data_dir: str = "path/to/dir", batch_size: int = 32, validation_split: float = 0):
+    def __init__(self, matrix, transform=None):
+        self.matrix = matrix 
+        self.shape = matrix.shape
+
+    def __len__(self):
+        return self.shape[0] * self.shape[1]
+
+    def __getitem__(self, idx):
+        # compute indices of row and column to sample from matrix
+        i = idx // self.shape[1] # row 
+        j = idx % self.shape[1] # column
+        # concat i-th row with j-th column
+        return torch.unsqueeze(torch.cat((self.matrix[i, :], self.matrix[:, j]), dim=0), dim=0)
+
+
+class Cross_DataModule(pl.LightningDataModule):
+    """
+    Our dataset iterates over the whole data matrix, where for entry i,j
+    we sample the user i's data (1000) from the dataset concatenated with movie j's ratings (10000x1)
+    I.e. we have a combination of the user's data and the movie's ratings.
+    We want to predict the user i's rating on movie j 
+    """
+    def __init__(self, data_dir: str = "path/to/dir", batch_size: int = 32, validation_split: float = 0.2):
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
@@ -27,10 +49,10 @@ class User_DataModule(pl.LightningDataModule):
         print(f"Data matrix shape: {self.data_matrix.shape}")
 
     def setup(self, stage: str = None):
-        length = len(self.data_matrix)
+        self.dataset = CrossDataset(self.data_matrix)
+        length = len(self.dataset)
         train_fraction = int((1-self.validation_split) * length)
         val_fraction = length - train_fraction
-        self.dataset = TensorDataset(self.data_matrix)
         self.user_train, self.user_val = random_split(self.dataset,
                             [train_fraction, val_fraction],
                             generator=torch.Generator().manual_seed(0))

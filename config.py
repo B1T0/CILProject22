@@ -13,7 +13,7 @@ config['mode'] = 'train'  # 'train' or 'eval'
 """
 Data related settings 
 """
-config['dataset'] = 'user' # 'contrastive'  
+config['dataset'] = 'cross' # 'contrastive'  
 # load input size from json file of the dataset 
 # with open(f"data/processed/{config['dataset']}/info.json") as f:
 #     data = json.load(f)

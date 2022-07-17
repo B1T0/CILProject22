@@ -9,6 +9,7 @@ from src.models.hyperparameters import params
 from src.data.FIRST.first_datamodule import FIRST_DataModule
 from src.data.Contrastive.graph_datamodule import Graph_DataModule
 from src.data.UserSample.user_datamodule import User_DataModule
+from src.data.CrossSample.cross_datamodule import Cross_DataModule
 from pathlib import Path
 
 
@@ -20,6 +21,11 @@ def get_datamodule():
             )
     elif config['dataset'] == 'user':
         return User_DataModule(
+            params[config['model']]['file_path'],
+            batch_size=params[config['model']]['batch_size']
+        )
+    elif config['dataset'] == 'cross':
+        return Cross_DataModule(
             params[config['model']]['file_path'],
             batch_size=params[config['model']]['batch_size']
         )

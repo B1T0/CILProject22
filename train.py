@@ -4,7 +4,7 @@ from pytorch_lightning.callbacks import ModelSummary
 from config import config
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.callbacks import ModelCheckpoint, TQDMProgressBar
+from pytorch_lightning.callbacks import ModelCheckpoint, TQDMProgressBar, LearningRateMonitor
 from pytorch_lightning.loggers import WandbLogger
 from src.utils.model_factory import get_model
 from src.models.hyperparameters import params
@@ -13,6 +13,8 @@ from src.utils.logger import Logger, log_params, WandbImageLogger
 import os
 from datamodule_factory import get_datamodule
 import logging
+from src.utils.utils import inference_for_submission, read_data, write_submission
+import torch 
 
 
 def main():
@@ -57,23 +59,25 @@ def main():
                          precision=16, # 16 bit float precision for training
                          #logger=[tb_logger, wandb_logger],  # log to tensorboard and wandb
                          logger = [tb_logger],
-
                          max_epochs=params[config['model']]['epochs'],  # max number of epochs
-                         callbacks=[EarlyStopping(monitor="Validation Loss", patience=20),  # early stopping
+                         callbacks=[#EarlyStopping(monitor="valid_loss", patience=30),  # early stopping
                                     ModelSummary(max_depth=1),  # model summary
-                                    ModelCheckpoint(log_dir, monitor='Validation Loss', save_top_k=1),  # save best model
-                                    TQDMProgressBar(refresh_rate=500)
+                                    #ModelCheckpoint(log_dir, monitor='valid_loss', save_top_k=1),  # save best model
+                                    #TQDMProgressBar(refresh_rate=500),
+                                    LearningRateMonitor(logging_interval='step')
                                     ],
                          auto_lr_find=True  # automatically find learning rate
                          )
-    logging.info("Start training.")
+    print("Start training.")
     trainer.fit(model, data_module)  # train the model
-    logging.info("Finished training.")
-    trainer.test(model, data_module)  # test the model
-
-    # Log test images to wandb
-    # inference_loader = DataLoader(data_module, batch_size=1, shuffle=False, num_workers=2)
-    # WandbImageLogger(model, inference_loader, wandb_logger).log_images()
+    # save best model 
+    #trainer.save_checkpoint(f"{log_dir}/best_model.ckpt")
+    print("Finished training.")
+    #trainer.test(model, data_module)  # test the model
+    print("Finished testing.")
+    # Perform inference on the whole dataset and save the prediction as submission file 
+    inference_for_submission(model, data=data_module.data_matrix, scaler=data_module.scaler, save_path=f"{log_dir}/submission.csv", save_rounded=True)
+    print("Finished inference.")
 
 
 if __name__ == "__main__":
