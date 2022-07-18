@@ -14,10 +14,12 @@ class Graph_Dataset(Dataset):
     using torch.sparse.mm
     """
 
-    def __init__(self, file_path, n_users, n_items, identity=False, binary=False):
+    def __init__(self, file_path, n_users, n_items, identity=False, binary=False, thresholding = True,
+                 threshold = 3.5, ratings = False):
         super(Graph_Dataset, self).__init__()
         df = pd.read_csv(file_path)
 
+        self.ratings = ratings
         # self.graph = torch.sparse_coo_tensor()
         self.len = len(df)
         self.n_users = n_users
@@ -33,20 +35,21 @@ class Graph_Dataset(Dataset):
             name, val = x['Id'], x['Prediction']
             movie, user = name.replace('c', '').replace('r', '').split('_')
             movie, user = int(movie)-1, int(user)-1
-            indices_i.append(user)
-            indices_j.append(movie + n_users)
-            values.append(val)
-            #
-            indices_i.append(movie + n_users)
-            indices_j.append(user)
-            values.append(val)
+            if not thresholding or val > threshold:
+                indices_i.append(user)
+                indices_j.append(movie + n_users)
+                values.append(val)
+                #
+                indices_i.append(movie + n_users)
+                indices_j.append(user)
+                values.append(val)
         # l.append([user, movie + n_users])
         self.graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
                                              torch.tensor(values), size=[self.n, self.n]).coalesce()
 
         if binary:
             self.binary_graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
-                                                        torch.ones(size=(self.len * 2,)),
+                                                        torch.ones(size=(len(indices_i),)),
                                                         size=[self.n, self.n]).coalesce()
         if identity:
             for i in range(n_users):
@@ -69,7 +72,7 @@ class Graph_Dataset(Dataset):
 
     def __getitem__(self, idx):
         # have to ignore identity indices
-        return self.graph.indices()[:, idx]
+        return self.graph.indices()[0, idx], self.graph.indices()[1, idx], self.graph.values()[idx]
 
 
 class Graph_DataModule(pl.LightningDataModule):

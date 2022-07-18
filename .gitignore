@@ -3,4 +3,5 @@ venv/
 *.csv
 __pycache__/
 src.egg-info/
-.idea/
+reports/logs/*
+.idea/*

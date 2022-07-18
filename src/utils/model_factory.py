@@ -1,7 +1,10 @@
 """
 Return a model class based on the given string
 """
-
+from src.models.CSE.model import model
 
 def get_model(args, model_name: str):
-    raise Exception("Choose valid model in config.py")
+    if model_name == 'Contrastive_Pretraining':
+        return model(args['embedding_dim'])
+    else:
+        raise Exception("Choose valid model in config.py")
