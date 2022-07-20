@@ -51,7 +51,7 @@ class Triplet_Dataset(Graph_Dataset):
         self.binary_graph = self.binary_graph#.to(device)
         # self.sampler = BatchSampler(WeightedRandomSampler(self.degrees, self.n, replacement=True), 3, drop_last=True)
         # self.batches = torch.tensor(list(self.sampler))
-        self.num_samples = 1
+        self.num_samples = 3
         self.device = device
         self.m = 5
         self.sampler = torch.distributions.categorical.Categorical(
