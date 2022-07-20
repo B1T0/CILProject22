@@ -121,7 +121,9 @@ class Model(pl.LightningModule):
         #loss_DS = self.loss_mse(ratings, torch.mul(phis[0], phis[1]))
         #dimensions may only work for sampling one neighbor
         loss_NS = 0
-        for i in range(self.num_samples_neighbors):
+        for i in range(len(phis_IC)):
+            print(phis_IC.size())
+            print(phi_item.size())
             loss_NS += - torch.mean(F.logsigmoid(torch.sum(torch.mul(phi_item, phis_IC[i]), dim=1))) - torch.mean(
                 F.logsigmoid(torch.sum(torch.mul(phi_user, phis_UC[i]), dim=1)))
 
