@@ -52,6 +52,7 @@ class Graph_Dataset(Dataset):
                                                         torch.ones(size=(len(indices_i),)),
                                                         size=[self.n, self.n]).coalesce()
         if identity:
+            print("Creating identity graph")
             for i in range(n_users):
                 indices_j.append(i)
                 indices_i.append(i)
