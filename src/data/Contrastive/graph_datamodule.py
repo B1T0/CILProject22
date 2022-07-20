@@ -144,13 +144,13 @@ class Triplet_Dataset(Graph_Dataset):
         w[x_neighbors] = 0
         # not k-neighbors of user
         if torch.max(w) < 1:
-            x_negative = None
+            x_negative = torch.full((self.m, ), x)
         else:
             x_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
         w = torch.ones(self.n)
         w[y_neighbors] = 0
         if torch.max(w) < 1:
-            y_negative = None
+            y_negative = torch.full((self.m,), x)
         # negative k_neighbors: k-neighbors of item
         else:
             y_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
