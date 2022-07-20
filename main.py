@@ -7,6 +7,7 @@ from src.models.CSE.model import Model
 import os
 import time
 from src.data.Contrastive.graph_datamodule import Triplet_Dataset
+from src.utils.logger import Logger, log_params, WandbImageLogger
 from torch.utils.data import DataLoader
 
 print(torch.cuda.device_count())
