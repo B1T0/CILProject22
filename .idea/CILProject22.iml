@@ -1,18 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
-      <excludeFolder url="file://$MODULE_DIR$/venv" />
-      <excludeFolder url="file://$MODULE_DIR$/reports/logs/20220708-014356_Acceptor" />
-      <excludeFolder url="file://$MODULE_DIR$/reports/logs/20220708-014425_Contrastive_Pretraining" />
-      <excludeFolder url="file://$MODULE_DIR$/reports/logs/20220708-014528_Contrastive_Pretraining" />
-      <excludeFolder url="file://$MODULE_DIR$/reports/logs/20220708-014656_Contrastive_Pretraining" />
-      <excludeFolder url="file://$MODULE_DIR$/reports/logs/20220708-015124_Contrastive_Pretraining" />
-      <excludeFolder url="file://$MODULE_DIR$/reports/logs/20220708-015416_Contrastive_Pretraining" />
-      <excludeFolder url="file://$MODULE_DIR$/reports/logs/20220708-020445_Contrastive_Pretraining" />
-    </content>
-    <orderEntry type="inheritedJdk" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (CILProject22)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">

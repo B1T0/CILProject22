@@ -3,7 +3,7 @@ from typing import Optional
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from torch.utils.data import DataLoader, WeightedRandomSampler, BatchSampler
+from torch.utils.data import DataLoader, WeightedRandomSampler, BatchSampler, Dataset
 import pandas as pd
 from src.data.Graph.graph_datamodule import Graph_Dataset
 import time
@@ -20,8 +20,7 @@ import time
 #     return tuple(batch)
 
 
-
-class Triplet_Dataset(Graph_Dataset):
+class Triplet_Dataset(Dataset):
     """
     while theoretically an iterable dataset, abusing Dataset API
     works out to smoother implementation
@@ -29,45 +28,113 @@ class Triplet_Dataset(Graph_Dataset):
     probably should have been implemented as iter
     """
 
-    def __init__(self, file_path, n_users, n_items, k,  device='cuda:0'):
-        super(Triplet_Dataset, self).__init__(file_path, n_users, n_items, False, True)
+    def __init__(self, file_path, n_users, n_items, k, device='cuda:0'):
+        super(Triplet_Dataset, self).__init__()
+
+        df = pd.read_csv(file_path)
+        # self.graph = torch.sparse_coo_tensor()
+        self.len = len(df)
+        self.n_users = n_users
+        self.n_items = n_items
+        self.n = n_users + n_items
+        self.threshold = 2.5
+        indices_i = []
+        indices_j = []
+        values = []
+
+        for i, x in df.iterrows():
+            name, val = x['Id'], x['Prediction']
+            movie, user = name.replace('c', '').replace('r', '').split('_')
+            movie, user = int(movie) - 1, int(user) - 1
+            if val > self.threshold:
+                indices_i.append(user)
+                indices_j.append(movie + n_users)
+                values.append(val)
+                #
+                indices_i.append(movie + n_users)
+                indices_j.append(user)
+                values.append(val)
+        for i in range(len(indices_i)):
+            if indices_i[i] < 1000 and indices_j[i] < 1000:
+                print(f'Binary Graph not bipartite {indices_i[i]} {indices_j[i]}')
+            if indices_i[i] > 1000 and indices_j[i] > 1000:
+                print(f'Binary Graph not bipartite {indices_i[i]} {indices_j[i]}')
+        # l.append([user, movie + n_users])
+        self.graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
+                                             torch.tensor(values), size=[self.n, self.n]).coalesce()
+
+        self.binary_graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
+                                                    torch.ones(size=(len(indices_i),)),
+                                                    size=[self.n, self.n]).coalesce()
+        print('1')
+        for idx in self.binary_graph.indices():
+            if idx[0] < 1000 and idx[1] < 1000:
+                print(f'Binary Graph not bipartite {idx[0]} {idx[1]}')
+                print(f'{self.binary_graph[idx[0], idx[1]]}')
+            if idx[0] > 1000 and idx[1] > 1000:
+                print(f'Binary Graph not bipartite {idx[0]} {idx[1]}')
+                print(f'{self.binary_graph[idx[0], idx[1]]}')
+
         self.degrees = torch.sparse.sum(self.binary_graph, dim=1).to_dense()
         print(self.degrees.size())
-        self.anti_degrees = torch.ones_like(self.degrees) * (self.n -1) - self.degrees
+        self.anti_degrees = torch.ones_like(self.degrees) * (self.n - 1) - self.degrees
         print(torch.min(self.anti_degrees))
         print(torch.max(self.anti_degrees))
         self.len = len(self.binary_graph.indices()[0])
         print(self.len)
-        self.binary_graph = self.binary_graph
         self.k_neighborhood = self.binary_graph
 
         print('Computing Neighborhood')
-        for i in range(k):
+        for i in range(k-1):
             print(f'{i} neighborhood')
             self.k_neighborhood = torch.sparse.mm(self.k_neighborhood, self.binary_graph)
         # convert to cst
 
+        self.k_degrees = torch.count_nonzero(self.k_neighborhood.to_dense(), dim=1)
+        print(f'Len k_degrees: {len(self.k_degrees)}')
+        print(f'Max k-neighbors: {torch.max(self.k_degrees)}')
+        print(f'Min k-neighbors: {torch.min(self.k_degrees)}')
         self.k_neighborhood = self.k_neighborhood.to_sparse_csr()
-        self.binary_graph = self.binary_graph#.to(device)
+        self.binary_graph = self.binary_graph  # .to(device)
         # self.sampler = BatchSampler(WeightedRandomSampler(self.degrees, self.n, replacement=True), 3, drop_last=True)
         # self.batches = torch.tensor(list(self.sampler))
-        self.num_samples = 1
+        self.num_samples = 6
         self.device = device
-        self.m = 5
+        self.m = 8
         self.sampler = torch.distributions.categorical.Categorical(
             torch.ones(self.n)
         )
-        self.indices = self.binary_graph.indices()#.to(device)
+        self.indices = self.binary_graph.indices()  # .to(device)
         self.neighborhood = self.binary_graph.to_sparse_csr()
         self.neighborhood_col = self.neighborhood.col_indices()
         self.neighborhood_crow = self.neighborhood.crow_indices()
 
-        #self.edge_indices = self.edge_idx_to_vector(self.indices)
-        self.col_indices = self.k_neighborhood.col_indices()#.to(device)
-        self.crow_indices = self.k_neighborhood.crow_indices()#.to(device)
+        # self.edge_indices = self.edge_idx_to_vector(self.indices)
+        self.col_indices = self.k_neighborhood.col_indices()  # .to(device)
+        self.crow_indices = self.k_neighborhood.crow_indices()  # .to(device)
         self.values = self.k_neighborhood.values()
         self.generator = torch.Generator()
         self.generator.manual_seed(2495021)
+
+    def is_bipartite(self):
+        bipartite = True
+        for idx in self.indices:
+            if idx[0] < 1000 and idx[1] < 1000:
+                print('Binary Graph not bipartite')
+                return False
+            if idx[0] > 1000 and idx[1] > 1000:
+                print('k Graph not bipartite')
+                return False
+        indices = self.k_neighborhood.to_sparse_coo().indices()
+        for idx in indices:
+            if idx[0] < 1000 and idx[1] < 1000:
+                print('Binary Graph not bipartite')
+                return False
+            if idx[0] > 1000 and idx[1] > 1000:
+                print('Binary Graph not bipartite')
+                return False
+
+        return True
 
     def __len__(self):
         return self.len
@@ -104,7 +171,7 @@ class Triplet_Dataset(Graph_Dataset):
         #
         # row, col = vector_to_edge_idx(neg_idx)
         # return row, col
-        #implicit assumption that every user has a negative edge
+        # implicit assumption that every user has a negative edge
         row = torch.multinomial(self.anti_degrees, num_samples=self.m, generator=self.generator)
         col = []
         for x in range(len(row)):
@@ -122,36 +189,42 @@ class Triplet_Dataset(Graph_Dataset):
         x, y = self.indices[:, idx]
         if x >= self.n_users:
             x, y = y, x
-        #neighborhood retrieval & sampling
+        # neighborhood retrieval & sampling
+        # graph does not look bipartite
         x_neighbors = self.col_indices[
                       self.crow_indices[x]:self.crow_indices[x + 1]]
 
-        #for random walk simulation
-        x_values = self.values[self.crow_indices[x]:self.crow_indices[x+1]]
+        # for random walk simulation
+        x_values = self.values[self.crow_indices[x]:self.crow_indices[x + 1]]
 
         y_neighbors = self.col_indices[
                       self.crow_indices[y]:self.crow_indices[y + 1]]
-        y_values = self.values[self.crow_indices[y]: self.crow_indices[y+1]]
+        y_values = self.values[self.crow_indices[y]: self.crow_indices[y + 1]]
 
         x_n = x_neighbors[torch.multinomial(x_values, num_samples=self.num_samples,
                                             generator=self.generator)]
         y_n = y_neighbors[torch.multinomial(y_values.float(), num_samples=self.num_samples,
                                             generator=self.generator)]
 
-        #negative edge sampling
+        # negative edge sampling
         row, col = self.negative_edges()
 
         w = torch.ones(self.n)
         w[x_neighbors] = 0
         # not k-neighbors of user
-        x_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
+        if torch.max(w) < 1:
+            x_negative = torch.full((self.m,), x)
+        else:
+            x_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
         w = torch.ones(self.n)
         w[y_neighbors] = 0
+        if torch.max(w) < 1 or torch.sum(w) <= 0:
+            y_negative = torch.full((self.m,), x)
         # negative k_neighbors: k-neighbors of item
-        y_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
+        else:
+            y_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
 
-        return x, y, x_n, y_n, x_negative, \
-               y_negative, row, col
+        return x, y, x_n, y_n, x_negative, y_negative, row, col
 
 
 class Graph_DataModule(pl.LightningDataModule):
