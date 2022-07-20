@@ -14,6 +14,7 @@ class Model(pl.LightningModule):
         self.phi_UC = nn.Embedding(11000, embedding_dim)
         self.lr = 0.01
         self.loss_mse = nn.MSELoss()
+        self.num_samples_neigbors = 3
         #self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         self.alpha = 0.05
         self.lam = 0.1
