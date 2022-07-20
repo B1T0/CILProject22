@@ -20,7 +20,6 @@ import time
 #     return tuple(batch)
 
 
-
 class Triplet_Dataset(Graph_Dataset):
     """
     while theoretically an iterable dataset, abusing Dataset API
@@ -29,11 +28,11 @@ class Triplet_Dataset(Graph_Dataset):
     probably should have been implemented as iter
     """
 
-    def __init__(self, file_path, n_users, n_items, k,  device='cuda:0'):
+    def __init__(self, file_path, n_users, n_items, k, device='cuda:0'):
         super(Triplet_Dataset, self).__init__(file_path, n_users, n_items, False, True)
         self.degrees = torch.sparse.sum(self.binary_graph, dim=1).to_dense()
         print(self.degrees.size())
-        self.anti_degrees = torch.ones_like(self.degrees) * (self.n -1) - self.degrees
+        self.anti_degrees = torch.ones_like(self.degrees) * (self.n - 1) - self.degrees
         print(torch.min(self.anti_degrees))
         print(torch.max(self.anti_degrees))
         self.len = len(self.binary_graph.indices()[0])
@@ -48,7 +47,7 @@ class Triplet_Dataset(Graph_Dataset):
         # convert to cst
 
         self.k_neighborhood = self.k_neighborhood.to_sparse_csr()
-        self.binary_graph = self.binary_graph#.to(device)
+        self.binary_graph = self.binary_graph  # .to(device)
         # self.sampler = BatchSampler(WeightedRandomSampler(self.degrees, self.n, replacement=True), 3, drop_last=True)
         # self.batches = torch.tensor(list(self.sampler))
         self.num_samples = 3
@@ -57,14 +56,14 @@ class Triplet_Dataset(Graph_Dataset):
         self.sampler = torch.distributions.categorical.Categorical(
             torch.ones(self.n)
         )
-        self.indices = self.binary_graph.indices()#.to(device)
+        self.indices = self.binary_graph.indices()  # .to(device)
         self.neighborhood = self.binary_graph.to_sparse_csr()
         self.neighborhood_col = self.neighborhood.col_indices()
         self.neighborhood_crow = self.neighborhood.crow_indices()
 
-        #self.edge_indices = self.edge_idx_to_vector(self.indices)
-        self.col_indices = self.k_neighborhood.col_indices()#.to(device)
-        self.crow_indices = self.k_neighborhood.crow_indices()#.to(device)
+        # self.edge_indices = self.edge_idx_to_vector(self.indices)
+        self.col_indices = self.k_neighborhood.col_indices()  # .to(device)
+        self.crow_indices = self.k_neighborhood.crow_indices()  # .to(device)
         self.values = self.k_neighborhood.values()
         self.generator = torch.Generator()
         self.generator.manual_seed(2495021)
@@ -104,7 +103,7 @@ class Triplet_Dataset(Graph_Dataset):
         #
         # row, col = vector_to_edge_idx(neg_idx)
         # return row, col
-        #implicit assumption that every user has a negative edge
+        # implicit assumption that every user has a negative edge
         row = torch.multinomial(self.anti_degrees, num_samples=self.m, generator=self.generator)
         col = []
         for x in range(len(row)):
@@ -122,36 +121,41 @@ class Triplet_Dataset(Graph_Dataset):
         x, y = self.indices[:, idx]
         if x >= self.n_users:
             x, y = y, x
-        #neighborhood retrieval & sampling
+        # neighborhood retrieval & sampling
         x_neighbors = self.col_indices[
                       self.crow_indices[x]:self.crow_indices[x + 1]]
 
-        #for random walk simulation
-        x_values = self.values[self.crow_indices[x]:self.crow_indices[x+1]]
+        # for random walk simulation
+        x_values = self.values[self.crow_indices[x]:self.crow_indices[x + 1]]
 
         y_neighbors = self.col_indices[
                       self.crow_indices[y]:self.crow_indices[y + 1]]
-        y_values = self.values[self.crow_indices[y]: self.crow_indices[y+1]]
+        y_values = self.values[self.crow_indices[y]: self.crow_indices[y + 1]]
 
         x_n = x_neighbors[torch.multinomial(x_values, num_samples=self.num_samples,
                                             generator=self.generator)]
         y_n = y_neighbors[torch.multinomial(y_values.float(), num_samples=self.num_samples,
                                             generator=self.generator)]
 
-        #negative edge sampling
+        # negative edge sampling
         row, col = self.negative_edges()
 
         w = torch.ones(self.n)
         w[x_neighbors] = 0
         # not k-neighbors of user
-        x_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
+        if torch.max(w) < 1:
+            x_negative = None
+        else:
+            x_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
         w = torch.ones(self.n)
         w[y_neighbors] = 0
+        if torch.max(w) < 1:
+            y_negative = None
         # negative k_neighbors: k-neighbors of item
-        y_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
+        else:
+            y_negative = torch.multinomial(w, num_samples=self.m, generator=self.generator)
 
-        return x, y, x_n, y_n, x_negative, \
-               y_negative, row, col
+        return x, y, x_n, y_n, x_negative, y_negative, row, col
 
 
 class Graph_DataModule(pl.LightningDataModule):

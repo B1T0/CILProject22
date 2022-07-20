@@ -63,7 +63,8 @@ def main():
             model.train()
             for batch in tqdm(dataloader):
                 for i, x in enumerate(batch):
-                    batch[i] = x.to('cuda:0')
+                    if x is not None:
+                        batch[i] = x.to('cuda:0')
                 loss = model.training_step(batch, batch_idx=0)
                 optimizer.zero_grad()
                 loss.backward()
