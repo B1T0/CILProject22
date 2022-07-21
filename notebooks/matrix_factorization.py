@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from subprocess import call
 from sklearn.metrics import mean_squared_error
 import math
-<<<<<<< HEAD
 from pyspark import SparkConf
 from pyspark.context import SparkContext
 from pyspark.sql.session import SparkSession
@@ -15,13 +14,8 @@ conf.set('spark.driver.memory', '4g')
 #spark = SparkSession(sc).builder
 
 spark = SparkSession(sc).builder.config(conf=conf).getOrCreate()
-=======
 from pyspark.context import SparkContext
 from pyspark.sql.session import SparkSession
-sc = SparkContext('local')
-spark = SparkSession(sc)
->>>>>>> 7b27b5019a91af3748b8a80db2e08f80ab92cd5c
-
 from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.ml.recommendation import ALS
 
