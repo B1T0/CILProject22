@@ -4,14 +4,14 @@ import torch.nn as nn
 
 
 class Prediction(pl.LightningModule):
-    def __init__(self, model,freeze = False):
+    def __init__(self, model,freeze = False, lr=1e-3):
         super(Prediction, self).__init__()
         self.embedding_dim = model.embedding_dim
         self.model = model
         if freeze:
             for p in model.parameters():
                 p.requires_grad = False
-        self.lr = 0.0001
+        self.lr = lr
         self.output_layer = nn.Sequential(
             nn.Linear(4*self.embedding_dim, 2*self.embedding_dim),
             nn.Linear(2*self.embedding_dim, 2*self.embedding_dim),
@@ -53,7 +53,7 @@ class Prediction(pl.LightningModule):
     def validation_step(self, valid_batch, batch_idx):
         x, y, rating = valid_batch
         pred = self.forward(x, y)
-        ored = pred.squeeze()
+        pred = pred.squeeze()
         loss = self.loss(pred, rating)
         self.log("Training Loss", loss)
         return loss

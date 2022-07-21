@@ -23,7 +23,7 @@ def main():
         os.makedirs(log_dir)
     sys.stdout = Logger(print_fp=os.path.join(log_dir, 'out.txt'))
     # Create logging file
-    logging.basicConfig(filename=f"{log_dir}/info.log", encoding='utf-8', level=logging.INFO)
+    logging.basicConfig(filename=f"{log_dir}/info.log", level=logging.INFO)
     logging.info("Started logging.")
 
     # Obtain datamodule based on config settings for dataset

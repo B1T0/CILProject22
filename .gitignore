@@ -5,3 +5,6 @@ __pycache__/
 src.egg-info/
 reports/logs/*
 .idea/*
+.idea/
+*.pyc
+
