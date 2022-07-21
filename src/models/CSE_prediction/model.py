@@ -16,13 +16,15 @@ class Prediction(pl.LightningModule):
             nn.Linear(4*self.embedding_dim, 2*self.embedding_dim),
             nn.Linear(2*self.embedding_dim, 2*self.embedding_dim),
             nn.ReLU(),
+            nn.Dropout(0.25),
             nn.Linear(2*self.embedding_dim, self.embedding_dim),
             nn.Linear(self.embedding_dim, self.embedding_dim),
             nn.ReLU(),
+            nn.Dropout(0.25),
             nn.Linear(self.embedding_dim, 1),
             nn.Sigmoid()
         )
-        self.loss = nn.L1Loss()
+        self.loss = nn.MSELoss()
 
     def forward(self, x, y):
         user_emb = self.model.phi(x)
@@ -37,7 +39,7 @@ class Prediction(pl.LightningModule):
         return 5*output
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        return torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.1)
 
     def training_step(self, train_batch, batch_idx):
         # for i, x in enumerate(train_batch):

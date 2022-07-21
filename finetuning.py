@@ -36,7 +36,7 @@ def main():
         model_path = model_dir + f'/model_best_{i}.pth'
         checkpoint = torch.load(model_path)
         pretrained.load_state_dict(checkpoint['model_state_dict'])
-        model = Prediction(pretrained, lr=lr)
+        model = Prediction(pretrained, freeze=True, lr=lr)
         print('Moving model to cuda')
         model = model.to('cuda:0')
         optimizer = model.configure_optimizers()
