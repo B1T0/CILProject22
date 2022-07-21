@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from torch import nn
+from src.utils.losses import MaskedMSELoss
 import numpy as np
 
 
@@ -35,12 +36,14 @@ class AutoEncoder(pl.LightningModule, ABC):
         self.output_layer = nn.Sequential(
             nn.Linear(hidden_dims[0], input_channels * input_width * input_height)
         )
+        self.dropout = nn.Dropout(0.25)
 
     def _encode(self, x):
         x = self.input_layer(x)
         for layer in self.encoding_modules:
             x = layer(x)
-        return x, x # dummy output for logger instead of mu, logvar 
+
+        return x
 
     def _decode(self, x):
         for layer in self.decoding_modules:
@@ -56,15 +59,17 @@ class AutoEncoder(pl.LightningModule, ABC):
         """
         return mu 
 
-    def forward(self, x, debug=False):
+    def forward(self, x, debug=False, dropout=False):
         if debug: print(f"input shape {x.shape}")
         x = self.input_layer(x)
         if debug: print(f"after input layer {x.shape}")
         for layer in self.encoding_modules:
             x = layer(x)
+            if dropout: x = self.dropout(x)
             if debug: print(f"x encoding {x.shape}")
         for layer in self.decoding_modules:
             x = layer(x)
+            if dropout: x = self.dropout(x)
             if debug: print(f"x decoding {x.shape}")
         x = self.output_layer(x)
         if debug: print(f"x output {x.shape}")
@@ -90,7 +95,7 @@ class AutoEncoder(pl.LightningModule, ABC):
         return x_hat
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=1e-5)
         return optimizer
 
     def _prepare_batch(self, batch):
@@ -112,15 +117,3 @@ class AutoEncoder(pl.LightningModule, ABC):
         if stage != 'test':
             self.log(f"{stage}_loss", loss, on_step=True)
         return loss, x_hat
-
-
-class MaskedMSELoss(torch.nn.Module):
-    """
-    Implements a masked MSE loss function 
-    """
-    def __init__(self):
-        super(MaskedMSELoss, self).__init__()
-
-    def forward(self, input, target, mask):
-        return torch.sum(((input - target) * mask) ** 2.0)  / torch.sum(mask)
-

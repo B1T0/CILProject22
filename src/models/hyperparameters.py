@@ -18,12 +18,22 @@ params = {
     },
 
     'AutoEncoder': {
-        'lr': 1e-4, 
-        'batch_size': 128,
-        'epochs': 50,
-        'input_width': 11000,
-        'hidden_dims': [128, 32],
-        'file_path': 'data/raw/data_train.csv',
-    }
+        'lr': 1e-5, 
+        'batch_size': 64,
+        'epochs': 100,
+        'weight_decay': 1e-2,
+        'input_width': 1000,
+        'hidden_dims': [128, 16],
+        'file_path': 'data/raw',
+    },
 
+    'MLP': {
+        'lr': 1e-4,
+        'batch_size': 64,
+        'epochs': 50,
+        'input_size': 11000,
+        'hidden_dims': [512, 128, 32],
+        'output_size': 1,
+        'file_path': 'data/raw',
+    }
 }

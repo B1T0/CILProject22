@@ -7,7 +7,8 @@ import torch
 
 
 class MLP(pl.LightningModule): 
-    def __init__(self, input_size=32, output_size=1, hidden_sizes=[32,16,8], lr=1e-5, loss=nn.MSELoss) -> None:
+    def __init__(self, input_size=32, output_size=1, hidden_sizes=[32,16,8], lr=1e-5, loss=nn.MSELoss, **kwargs
+    ) -> None:
         super().__init__()
         self.input_size = input_size
         self.output_size = output_size  
@@ -52,13 +53,19 @@ class MLP(pl.LightningModule):
 
     def _prepare_batch(self, batch):
         """Prepare batch."""
-        x, y = batch
-        y = torch.tensor(y, dtype=torch.float) # long for BCE 
-        return x, y
+        x, y = batch['x'], batch['y']
+        # print(f"x shape {x.shape}")
+        x = x.to(self.device)
+        # compute the non-nan mask 
+        nan_mask = torch.isnan(x)
+        # makenans in x to 0 
+        x[nan_mask] = 0
+        # return x.view(x.size(0), -1)
+        return x, nan_mask
 
     def _common_step(self, batch, batch_idx, stage: str):
         """Common step."""
-        x, y = self._prepare_batch(batch)
+        x, nan_mask = self._prepare_batch(batch)
         y_hat = self(x)
         loss = self.loss(y_hat, y)
         #print(f"{stage} loss: {loss.item()}, type {type(loss)}, torch type {type(loss.data)}")

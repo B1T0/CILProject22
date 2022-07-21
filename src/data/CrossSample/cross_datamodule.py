@@ -12,20 +12,33 @@ from sklearn.preprocessing import StandardScaler
 class CrossDataset(dataset.Dataset):
     """
     Custom dataset to sample concatenated row i and column j over data matrix
+    Also return the value for user i, movie j 
     """
     def __init__(self, matrix, transform=None):
         self.matrix = matrix 
         self.shape = matrix.shape
+        # count nans in matrix
+        self.num_nans = np.isnan(matrix).sum()
+        # number of non nans
+        self.num_non_nans = self.shape[0] * self.shape[1] - self.num_nans
+        # get indices of non-nan values
+        self.non_nan_indices = np.where(~np.isnan(matrix))
+
 
     def __len__(self):
-        return self.shape[0] * self.shape[1]
+        return self.num_non_nans
 
     def __getitem__(self, idx):
         # compute indices of row and column to sample from matrix
-        i = idx // self.shape[1] # row 
-        j = idx % self.shape[1] # column
+        # i = idx // self.shape[1] # row 
+        # j = idx % self.shape[1] # column
         # concat i-th row with j-th column
-        return torch.unsqueeze(torch.cat((self.matrix[i, :], self.matrix[:, j]), dim=0), dim=0)
+        i, j = self.non_nan_indices[0][idx], self.non_nan_indices[1][idx]
+        return {
+            'x': torch.unsqueeze(torch.cat((self.matrix[i, :], self.matrix[:, j]), dim=0), dim=0),
+            'y': self.matrix[i, j]
+        }
+
 
 
 class Cross_DataModule(pl.LightningDataModule):

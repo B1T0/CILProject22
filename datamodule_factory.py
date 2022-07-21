@@ -13,7 +13,7 @@ from src.data.CrossSample.cross_datamodule import Cross_DataModule
 from pathlib import Path
 
 
-def get_datamodule():
+def get_datamodule(split_number):
     if config['dataset'] == 'contrastive':
         return Graph_DataModule(
             params[config['model']]['file_path'],
@@ -21,6 +21,7 @@ def get_datamodule():
             )
     elif config['dataset'] == 'user':
         return User_DataModule(
+            split_number, 
             params[config['model']]['file_path'],
             batch_size=params[config['model']]['batch_size']
         )
