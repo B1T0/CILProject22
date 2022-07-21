@@ -4,6 +4,18 @@ import pandas as pd
 import torch 
 import math 
 
+def get_activation_function(activation_function_name):
+    if activation_function_name == 'relu':
+        return torch.nn.ReLU()
+    elif activation_function_name == 'sigmoid':
+        return torch.nn.Sigmoid()
+    elif activation_function_name == 'tanh':
+        return torch.nn.Tanh()
+    elif activation_function_name == 'linear':
+        return torch.nn.Linear()
+    else:
+        raise ValueError("Unknown activation function")
+
 
 def get_data_path():
     return Path(__file__).parent.parent.parent / 'data'
