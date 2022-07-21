@@ -48,7 +48,7 @@ class Prediction(pl.LightningModule):
         x, y, rating = train_batch
         pred = self.forward(x, y)
         pred = pred.squeeze()
-        loss = self.loss(pred, rating)
+        loss = self.loss(pred, rating.float())
         self.log("Training Loss", loss)
         return loss
 
@@ -56,7 +56,7 @@ class Prediction(pl.LightningModule):
         x, y, rating = valid_batch
         pred = self.forward(x, y)
         pred = pred.squeeze()
-        loss = self.loss(pred, rating)
+        loss = self.loss(pred, rating.float())
         self.log("Training Loss", loss)
         return loss
 
