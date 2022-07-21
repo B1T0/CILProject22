@@ -13,12 +13,12 @@ class Prediction(pl.LightningModule):
                 p.requires_grad = False
         self.lr = lr
         self.output_layer = nn.Sequential(
+            nn.Linear(4*self.embedding_dim, 4*self.embedding_dim),
             nn.Linear(4*self.embedding_dim, 2*self.embedding_dim),
-            nn.Linear(2*self.embedding_dim, 2*self.embedding_dim),
             nn.ReLU(),
             nn.Dropout(0.25),
+            nn.Linear(2*self.embedding_dim, 2*self.embedding_dim),
             nn.Linear(2*self.embedding_dim, self.embedding_dim),
-            nn.Linear(self.embedding_dim, self.embedding_dim),
             nn.ReLU(),
             nn.Dropout(0.25),
             nn.Linear(self.embedding_dim, 1),
