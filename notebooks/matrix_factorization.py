@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from subprocess import call
 from sklearn.metrics import mean_squared_error
 import math
+<<<<<<< HEAD
 from pyspark import SparkConf
 from pyspark.context import SparkContext
 from pyspark.sql.session import SparkSession
@@ -14,6 +15,12 @@ conf.set('spark.driver.memory', '4g')
 #spark = SparkSession(sc).builder
 
 spark = SparkSession(sc).builder.config(conf=conf).getOrCreate()
+=======
+from pyspark.context import SparkContext
+from pyspark.sql.session import SparkSession
+sc = SparkContext('local')
+spark = SparkSession(sc)
+>>>>>>> 7b27b5019a91af3748b8a80db2e08f80ab92cd5c
 
 from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.ml.recommendation import ALS
@@ -21,9 +28,15 @@ from pyspark.ml.recommendation import ALS
 
 # Load the data
 print('Loading data...')
+<<<<<<< HEAD
 df_full = pd.read_csv('/home/jj/CILProject22/data/raw/data_train.csv')
 df_train = pd.read_csv('/home/jj/CILProject22/data/raw/cross_validation/train_split_4.csv')
 df_test = pd.read_csv('/home/jj/CILProject22/data/raw/cross_validation/test_split_4.csv')
+=======
+df_full = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/data_train.csv')
+df_train = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/cross_validation/train_split_4.csv')
+df_test = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/cross_validation/test_split_4.csv')
+>>>>>>> 7b27b5019a91af3748b8a80db2e08f80ab92cd5c
 
 dic_full = {
     'user_id': [int(str(x).partition("_")[0][1:]) for x in df_full['Id']],

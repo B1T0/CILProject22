@@ -7,4 +7,4 @@ reports/logs/*
 .idea/*
 .idea/
 *.pyc
-
+**/__pycache__/
