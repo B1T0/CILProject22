@@ -39,7 +39,7 @@ class Prediction(pl.LightningModule):
         return 5*output
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.1)
+        return torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.2)
 
     def training_step(self, train_batch, batch_idx):
         # for i, x in enumerate(train_batch):
