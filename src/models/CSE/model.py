@@ -6,13 +6,13 @@ import torch.nn.functional as F
 
 
 class Model(pl.LightningModule):
-    def __init__(self, embedding_dim=32):
+    def __init__(self, embedding_dim=100):
         super(Model, self).__init__()
         self.embedding_dim = embedding_dim
         self.phi = nn.Embedding(11000, embedding_dim)
         self.phi_IC = nn.Embedding(11000, embedding_dim)
         self.phi_UC = nn.Embedding(11000, embedding_dim)
-        self.lr = 0.01
+        self.lr = 0.005
         self.loss_mse = nn.MSELoss()
         self.num_samples_neigbors = 3
         #self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
@@ -24,12 +24,12 @@ class Model(pl.LightningModule):
         return self.phi(x), self.phi_IC(x), self.phi_UC(x)
 
     def configure_optimizers(self):
-        return torch.optim.SGD([
-            {'params': self.phi.parameters(), 'weight_decay': self.lav, 'lr': self.lr},
-            {'params': self.phi_IC.parameters()},
-            {'params': self.phi_UC.parameters()}
-        ], lr=self.lr, momentum=0.9)
-        #return torch.optim.Adam(self.parameters(), lr=self.lr)
+        # return torch.optim.SGD([
+        #     {'params': self.phi.parameters(), 'weight_decay': self.lav, 'lr': self.lr},
+        #     {'params': self.phi_IC.parameters(), 'weight_decay': self.lav},
+        #     {'params': self.phi_UC.parameters(), 'weight_decay': self.lav}
+        # ], lr=self.lr, momentum=0.9)
+        return torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.lav)
 
     def training_step(self, train_batch, batch_idx):
         # for i, x in enumerate(train_batch):

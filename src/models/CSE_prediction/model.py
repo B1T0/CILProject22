@@ -30,7 +30,7 @@ class Prediction(pl.LightningModule):
         item_emb = self.model.phi(y)
         item_ngh_emb = self.model.phi_IC(y)
 
-        emb = torch.cat([user_emb, user_ngh_emb, item_emb, item_ngh_emb
+        emb = torch.cat([user_emb, user_ngh_emb, item_emb, item_ngh_emb,
                          torch.mul(user_emb, item_emb), torch.mul(user_emb, item_ngh_emb),
                          torch.mul(item_emb, user_ngh_emb)], dim=1)
 
