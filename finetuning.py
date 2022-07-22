@@ -15,7 +15,7 @@ print(torch.cuda.device_count())
 SPLIT = 5
 data_dir = 'reports/logs/run_2_5'
 model_dir = 'reports/logs/20220709-162957_pretrain_norm_sgd'
-model_name = 'reports/logs/...'
+model_name = 'reports/logs/20220721-203020-pretrain_norm_sgd'
 FIT_ALL_SPLITS = False
 EPOCH = 50
 bs = 16
