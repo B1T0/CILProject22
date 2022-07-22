@@ -13,15 +13,12 @@ class Prediction(pl.LightningModule):
                 p.requires_grad = False
         self.lr = lr
         self.output_layer = nn.Sequential(
-            nn.Linear(4*self.embedding_dim, 4*self.embedding_dim),
-            nn.Linear(4*self.embedding_dim, 2*self.embedding_dim),
+            nn.Linear(7*self.embedding_dim, 10*self.embedding_dim),
+            nn.Linear(10*self.embedding_dim, 10*self.embedding_dim),
             nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(2*self.embedding_dim, 2*self.embedding_dim),
-            nn.Linear(2*self.embedding_dim, self.embedding_dim),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(self.embedding_dim, 1),
+            nn.Dropout(0.1),
+            nn.Linear(10*self.embedding_dim, 4*self.embedding_dim),
+            nn.Linear(4* self.embedding_dim, 1),
             nn.Sigmoid()
         )
         self.loss = nn.MSELoss()
@@ -33,13 +30,15 @@ class Prediction(pl.LightningModule):
         item_emb = self.model.phi(y)
         item_ngh_emb = self.model.phi_IC(y)
 
-        emb = torch.cat([user_emb, user_ngh_emb, item_emb, item_ngh_emb], dim=1)
+        emb = torch.cat([user_emb, user_ngh_emb, item_emb, item_ngh_emb
+                         torch.mul(user_emb, item_emb), torch.mul(user_emb, item_ngh_emb),
+                         torch.mul(item_emb, user_ngh_emb)], dim=1)
 
         output = self.output_layer(emb)
         return 5*output
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.2)
+        return torch.optim.Adam(self.parameters(), lr=self.lr, weight_decay=0.1)
 
     def training_step(self, train_batch, batch_idx):
         # for i, x in enumerate(train_batch):

@@ -18,8 +18,8 @@ model_dir = 'reports/logs/20220709-162957_pretrain_norm_sgd'
 model_name = 'reports/logs/20220721-203020-pretrain_norm_sgd/model_56_0.pth'
 FIT_ALL_SPLITS = False
 EPOCH = 50
-bs = 16
-lr = 1e-4
+bs = 32
+lr = 1e-3
 
 
 def finetune_model(log_dir, model_path, split=0):
