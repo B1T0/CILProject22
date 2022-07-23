@@ -6,8 +6,11 @@ from sklearn.metrics import mean_squared_error
 import math
 from pyspark.context import SparkContext
 from pyspark.sql.session import SparkSession
+
 sc = SparkContext('local')
 spark = SparkSession(sc)
+spark.conf.set('spark.sql.crossJoin.enabled', 'true')
+spark.sparkContext.setCheckpointDir('./checkpoints')
 
 from pyspark.ml.evaluation import RegressionEvaluator
 from pyspark.ml.recommendation import ALS
@@ -16,8 +19,8 @@ from pyspark.ml.recommendation import ALS
 # Load the data
 print('Loading data...')
 df_full = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/data_train.csv')
-df_train = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/cross_validation/train_split_4.csv')
-df_test = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/cross_validation/test_split_4.csv')
+# df_train = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/cross_validation/train_split_4.csv')
+# df_test = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/cross_validation/test_split_4.csv')
 
 dic_full = {
     'user_id': [int(str(x).partition("_")[0][1:]) for x in df_full['Id']],
@@ -25,23 +28,20 @@ dic_full = {
     #'combined': [(str(x).partition("_")[0][1:],str(x).partition("_")[2][1:]) for x in df['Id']],
     'rating': [float(x) for x in df_full['Prediction']],
 }
-dic_train = {
-    'user_id': [int(str(x).partition("_")[0][1:]) for x in df_train['Id']],
-    'item_id': [int(str(x).partition("_")[2][1:]) for x in df_train['Id']],
-    'rating': [float(x) for x in df_train['Prediction']],
-}
-dic_test = {
-    'user_id': [int(str(x).partition("_")[0][1:]) for x in df_test['Id']],
-    'item_id': [int(str(x).partition("_")[2][1:]) for x in df_test['Id']],
-    'rating': [float(x) for x in df_test['Prediction']],
-}
+# dic_train = {
+#     'user_id': [int(str(x).partition("_")[0][1:]) for x in df_train['Id']],
+#     'item_id': [int(str(x).partition("_")[2][1:]) for x in df_train['Id']],
+#     'rating': [float(x) for x in df_train['Prediction']],
+# }
+# dic_test = {
+#     'user_id': [int(str(x).partition("_")[0][1:]) for x in df_test['Id']],
+#     'item_id': [int(str(x).partition("_")[2][1:]) for x in df_test['Id']],
+#     'rating': [float(x) for x in df_test['Prediction']],
+# }
 
 full_data = pd.DataFrame(dic_full)
-train_data = pd.DataFrame(dic_train)
-test_data = pd.DataFrame(dic_test)
-full_data[:100]
-
-
+# train_data = pd.DataFrame(dic_train)
+# test_data = pd.DataFrame(dic_test)
 
 
 def tune_ALS(train_data, validation_data, maxIter, regParams, ranks):
@@ -117,21 +117,19 @@ def make_recommendations(self, fav_movie, n_recommendations):
 
 
 print('Preparing data...')
-train_lib = list(zip(train_data.user_id, train_data.item_id, train_data.rating))
-test_lib = list(zip(test_data.user_id, test_data.item_id, test_data.rating))
-full_lib = train_lib + test_lib
-print(train_lib[:10])
-print(test_lib[:10])
+# train_lib = list(zip(train_data.user_id, train_data.item_id, train_data.rating))
+# test_lib = list(zip(test_data.user_id, test_data.item_id, test_data.rating))
+full_lib = list(zip(full_data.user_id, full_data.item_id, full_data.rating))
+print(full_lib[:10])
 
 # df_train = spark.createDataFrame(train_lib, ["user", "item", "rating"])
 # df_test = spark.createDataFrame(test_lib, ["user", "item", "rating"])
 df_full = spark.createDataFrame(full_lib, ["user", "item", "rating"])
 
 
-
 # train ALS model
 print('Training model...')
-als = ALS().setMaxIter(30).setRank(30).setRegParam(0.1)
+als = ALS().setMaxIter(15).setRank(30).setRegParam(0.1)
 print(f'Training model with rank {30} and regularization {0.1}')
 model = als.fit(df_full)
 
