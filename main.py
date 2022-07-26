@@ -118,13 +118,13 @@ def main():
     print('Beginning Training')
     if train_on_splits:
         for split in range(NUM_SPLITS):
-            dataset = Triplet_Dataset(file_path=path + f'{split}.csv', n_users=1000, n_items=10000, k=K)
+            dataset = Triplet_Dataset(file_path=path + f'{split}.csv', n_items=1000, n_users=10000, k=K)
             dataloader = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=5)
-            val_dataset = Triplet_Dataset(file_path=val_path + f'{split}.csv', n_users=1000, n_items=10000, k=K)
+            val_dataset = Triplet_Dataset(file_path=val_path + f'{split}.csv', n_items=1000, n_users=10000, k=K)
             val_dataloader = DataLoader(val_dataset, batch_size=bs, num_workers=5)
             train_model(log_dir, dataloader, val_dataloader, split)
     else:
-        dataset = Triplet_Dataset(file_path=f'data/raw/data_train.csv', n_users=1000, n_items=10000, k=K)
+        dataset = Triplet_Dataset(file_path=f'data/raw/data_train.csv', n_items=1000, n_users=10000, k=K)
         dataloader = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=5)
         train_model(log_dir, dataloader)
 
