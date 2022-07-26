@@ -9,33 +9,40 @@ import os
 import time
 from src.data.Graph.graph_datamodule import Graph_Dataset
 from torch.utils.data import DataLoader
-
+from src.utils.logger import Logger
+import logging
+import sys
 print(torch.cuda.device_count())
 
 
 path = '/home/jimmy/CILProject22/data/raw/train_split_0.csv'
 val_path = '/home/jimmy/CILProject22/data/raw/test_split_0.csv'
-model_path = '/home/jimmy/CILProject22/reports/logs/20220709-162957_pretrain_norm_sgd/model_20.pth'
+#model_path = '/home/jimmy/CILProject22/reports/logs/20220709-162957_pretrain_norm_sgd/model_20.pth'
+model_path = '/home/jimmy/CILProject22/reports/logs/20220725-182705_pretrain_norm_sgd/model_25.pth'
 EPOCH = 50
-bs = 16
+bs = 32
+FREEZE = True
 
 
 def main():
     pretrained = Model()
     checkpoint = torch.load(model_path)
     pretrained.load_state_dict(checkpoint['model_state_dict'])
-    model = Prediction(pretrained)
+    model = Prediction(pretrained, freeze=FREEZE)
     print('Moving model to cuda')
     model = model.to('cuda:0')
     optimizer = model.configure_optimizers()
     #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1, verbose=True)
     print(optimizer)
     run_id = time.strftime("%Y%m%d-%H%M%S")
-    log_dir = f"/home/jimmy/CILProject22/reports/logs/{run_id}_finetuning"
+    log_dir = f"/home/jimmy/CILProject22/reports/logs/{run_id}_finetuning_freeze_{FREEZE}"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
         # Create logging file
-
+    sys.stdout = Logger(print_fp=os.path.join(log_dir, 'out.txt'))
+    # Create logging file
+    logging.basicConfig(filename=f"{log_dir}/info.log", encoding='utf-8', level=logging.INFO)
+    logging.info("Started logging.")
     print('Creating Dataloaders')
     dataset = Graph_Dataset(file_path=path, n_users=1000, n_items=10000, threshold=False)
     dataloader = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=6)
@@ -80,6 +87,15 @@ def main():
                 'model_state_dict': model.state_dict(),
                 'loss': train_loss
             }, log_dir+f'/model_best.pth')
+
+        if epoch % 4 == 0:
+            best_val_loss = val_loss
+            print(f'model')
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'loss': train_loss
+            }, log_dir+f'/model_{epoch}.pth')
 
 
 if __name__ == "__main__":

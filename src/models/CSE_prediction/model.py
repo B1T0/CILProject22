@@ -13,31 +13,39 @@ class Prediction(pl.LightningModule):
                 p.requires_grad = False
         self.lr = 0.0001
         self.output_layer = nn.Sequential(
+            #nn.Linear(4*self.embedding_dim, self.embedding_dim),
+            nn.Linear(7*self.embedding_dim, 4*self.embedding_dim),
+            nn.Linear(4*self.embedding_dim, 4*self.embedding_dim),
+            nn.ReLU(),
+            nn.Dropout(0.5),
             nn.Linear(4*self.embedding_dim, 2*self.embedding_dim),
             nn.Linear(2*self.embedding_dim, 2*self.embedding_dim),
             nn.ReLU(),
-            nn.Linear(2*self.embedding_dim, self.embedding_dim),
-            nn.Linear(self.embedding_dim, self.embedding_dim),
-            nn.ReLU(),
-            nn.Linear(self.embedding_dim, 1),
+            nn.Dropout(0.5),
+            nn.Linear(2*self.embedding_dim, 1),
             nn.Sigmoid()
         )
-        self.loss = nn.L1Loss()
+        self.loss = nn.MSELoss()
 
     def forward(self, x, y):
         user_emb = self.model.phi(x)
-        user_ngh_emb = self.model.phi_UC(x)
+        #user_ngh_emb = self.model.phi_UC(x)
+        user_IC_emb = self.model.phi_IC(x)
 
         item_emb = self.model.phi(y)
-        item_ngh_emb = self.model.phi_IC(y)
-
-        emb = torch.cat([user_emb, user_ngh_emb, item_emb, item_ngh_emb], dim=1)
+        #item_ngh_emb = self.model.phi_IC(y)
+        item_UC_emb = self.model.phi_UC(y)
+        #emb = torch.cat([user_emb, user_ngh_emb, item_emb, item_ngh_emb], dim=1)
+        emb = torch.cat([user_emb, user_IC_emb, item_emb, item_UC_emb, torch.mul(user_emb, item_emb),
+                         torch.mul(user_emb, item_UC_emb), torch.mul(item_emb, user_IC_emb)], dim=1)
 
         output = self.output_layer(emb)
         return 5*output
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        print("Using mixed learn rates")
+        return torch.optim.Adam([{'params': self.model.parameters(), 'lr': 1e-5},
+            {'params': self.output_layer.parameters()}], lr=self.lr)
 
     def training_step(self, train_batch, batch_idx):
         # for i, x in enumerate(train_batch):
@@ -46,15 +54,15 @@ class Prediction(pl.LightningModule):
         x, y, rating = train_batch
         pred = self.forward(x, y)
         pred = pred.squeeze()
-        loss = self.loss(pred, rating)
+        loss = self.loss(pred, rating.float())
         self.log("Training Loss", loss)
         return loss
 
     def validation_step(self, valid_batch, batch_idx):
         x, y, rating = valid_batch
         pred = self.forward(x, y)
-        ored = pred.squeeze()
-        loss = self.loss(pred, rating)
+        pred = pred.squeeze()
+        loss = self.loss(pred, rating.float())
         self.log("Training Loss", loss)
         return loss
 

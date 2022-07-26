@@ -1,3 +1,6 @@
+import logging
+import sys
+
 import pandas as pd
 import numpy as np
 import torch
@@ -9,13 +12,17 @@ import time
 from src.data.Contrastive.graph_datamodule import Triplet_Dataset
 from torch.utils.data import DataLoader
 
+from src.utils.logger import Logger
+
 print(torch.cuda.device_count())
 
 
-path = '/home/jimmy/CILProject22/data/raw/train_split_0.csv'
+#path = '/home/jimmy/CILProject22/data/raw/train_split_0.csv'
+path = '/home/jimmy/CILProject22/data/raw/data_train.csv'
 val_path = '/home/jimmy/CILProject22/data/raw/test_split_0.csv'
 EPOCH = 50
 bs = 16
+no_val = True
 
 
 def main():
@@ -30,7 +37,10 @@ def main():
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
         # Create logging file
-
+    sys.stdout = Logger(print_fp=os.path.join(log_dir, 'out.txt'))
+    # Create logging file
+    logging.basicConfig(filename=f"{log_dir}/info.log", encoding='utf-8', level=logging.INFO)
+    logging.info("Started logging.")
     print('Creating Dataloaders')
     dataset = Triplet_Dataset(file_path=path, n_users=1000, n_items=10000, k=2)
     dataloader = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=6)
@@ -39,6 +49,7 @@ def main():
 
     print('Beginning Training')
     j = None
+    best_score = None
     for epoch in range(EPOCH):
         print(f'Epoch {epoch}')
         train_loss = 0
@@ -55,28 +66,39 @@ def main():
         model.eval()
         print(torch.multinomial(torch.ones(size=(5,)), num_samples=4, generator=dataloader.generator))
         if j is None:
-            j = (model.phi(torch.arange(1, 4, device='cuda:0')), \
-                model.phi_IC(torch.arange(1, 4, device='cuda:0')), model.phi_UC(torch.arange(1, 4, device='cuda:0')))
+            j = (model.phi(torch.arange(1, 100, device='cuda:0')), \
+                model.phi_IC(torch.arange(1, 100, device='cuda:0')), model.phi_UC(torch.arange(1, 100, device='cuda:0')))
         else:
-            val = (model.phi(torch.arange(1, 4, device='cuda:0')), \
-                model.phi_IC(torch.arange(1, 4, device='cuda:0')), model.phi_UC(torch.arange(1, 4, device='cuda:0')))
+            val = (model.phi(torch.arange(1, 100, device='cuda:0')), \
+                model.phi_IC(torch.arange(1, 100, device='cuda:0')), model.phi_UC(torch.arange(1, 100, device='cuda:0')))
             #val = model.phi(torch.arange(1,4, device='cuda:0'))
-            print(f'embedding_diff: {torch.norm(val[0]-j[0])}')
+            print(f'embedding_diff: {torch.sum(torch.norm(val[0]-j[0], dim=1))}')
             #ic and uc embeddings don't change massively....
-            print(f'IC embedding_diff: {torch.norm(val[1] - j[1])}')
-            print(f'UC embedding_diff: {torch.norm(val[2] - j[2])}')
+            print(f'IC embedding_diff: {torch.sum(torch.norm(val[1] - j[1], dim=1))}')
+            print(f'UC embedding_diff: {torch.sum(torch.norm(val[2] - j[2], dim=1))}')
             j = val
-        print(f'Validating')
-        model.eval()
-        with torch.no_grad():
-            val_loss = 0
-            for batch in tqdm(val_dataloader):
-                for i, x in enumerate(batch):
-                    batch[i] = x.to('cuda:0')
-                loss = model.validation_step(batch, batch_idx=0)
-                val_loss += loss
-            print(f'Val Loss: {val_loss/len(val_dataloader)}')
+        if not no_val:
+            print(f'Validating')
+            model.eval()
+            with torch.no_grad():
+                val_loss = 0
+                for batch in tqdm(val_dataloader):
+                    for i, x in enumerate(batch):
+                        batch[i] = x.to('cuda:0')
+                    loss = model.validation_step(batch, batch_idx=0)
+                    val_loss += loss
+                print(f'Val Loss: {val_loss/len(val_dataloader)}')
         scheduler.step()
+        if best_score is None:
+            best_score = train_loss/len(dataloader)
+        elif train_loss/len(dataloader) < best_score:
+            best_score = train_loss/len(dataloader)
+            print('New best model')
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'loss': train_loss
+            }, log_dir + f'/model_best.pth')
         torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),

@@ -13,12 +13,14 @@ from torch.utils.data import DataLoader
 
 print(torch.cuda.device_count())
 
-
 path = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
-model_path = '/home/jimmy/CILProject22/reports/logs/20220710-164447_finetuning/model_best.pth'
+# model_path = '/home/jimmy/CILProject22/reports/logs/20220710-164447_finetuning/model_best.pth'
+#model_path = '/home/jimmy/CILProject22/reports/logs/20220714-232851_finetuning/model_best.pth'
+model_path = '/home/jimmy/CILProject22/reports/logs/20220725-230933_finetuning/model_best.pth'
 EPOCH = 50
 bs = 16
 n_users = 1000
+
 
 def main():
     pretrained = Model()
@@ -28,7 +30,7 @@ def main():
     print('Moving model to cuda')
     model = model.to('cuda:0')
     optimizer = model.configure_optimizers()
-    #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1, verbose=True)
+    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1, verbose=True)
     print(optimizer)
     run_id = time.strftime("%Y%m%d-%H%M%S")
     log_dir = f"/home/jimmy/CILProject22/reports/logs/{run_id}_prediction"
@@ -37,9 +39,6 @@ def main():
         # Create logging file
 
     print('Creating Dataloaders')
-
-
-
 
     model.eval()
     indices_i = []
@@ -64,13 +63,14 @@ def main():
             prediction = model.forward(user, item)
             user_idx = user + 1
             item_idx = item - n_users + 1
-            prediction = np.rint(prediction.cpu().numpy())
+            prediction = prediction.cpu().numpy()
             for i in range(len(user_idx)):
                 idx.append(f'r{item_idx[i]}_c{user_idx[i]}')
                 predictions.append(int(prediction[i]))
 
     df = pd.DataFrame({'Id': idx, 'Prediction': predictions})
-    df.to_csv(log_dir+'/submission.csv', index=False)
+    df.to_csv(log_dir + '/submission_pretrained_mse_pc.csv', index=False)
+
 
 if __name__ == "__main__":
     main()
