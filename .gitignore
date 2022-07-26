@@ -2,6 +2,9 @@
 venv/
 *.csv
 __pycache__/
+src.egg-info/
 reports/logs/*
 .idea/*
-
+.idea/
+*.pyc
+**/__pycache__/
