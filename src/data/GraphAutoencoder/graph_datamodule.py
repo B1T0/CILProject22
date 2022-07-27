@@ -16,17 +16,20 @@ class Graph_Dataset(Dataset):
 
     def __init__(self, file_path, n_users, n_items, edges=True):
         super(Graph_Dataset, self).__init__()
-        df = pd.read_csv(file_path)
+
+        print(file_path)
+        self.df = pd.read_csv(str(file_path))
 
         # self.graph = torch.sparse_coo_tensor()
-        self.len = len(df)
+        self.len = len(self.df)
         self.n_users = n_users
         self.n_items = n_items
         self.n = n_users + n_items
         indices_i = []
         indices_j = []
         values = []
-        for i, x in df.iterrows():
+        print("Iterating over dataset")
+        for i, x in self.df.iterrows():
             name, val = x['Id'], x['Prediction']
             user, movie = name.replace('c', '').replace('r', '').split('_')
             movie, user = int(movie) - 1, int(user) - 1

@@ -14,28 +14,26 @@ import sys
 
 print(torch.cuda.device_count())
 
-path = 'data/raw/train_split_'
-val_path = 'data/raw/test_split_'
+path = '/home/jimmy/CILProject22/data/raw/train_split_'
+val_path = '/home/jimmy/CILProject22/data/raw/test_split_'
 LOSS = 'MSE'
 NUM_SPLITS = 5
-EPOCH = 100
-bs = 16
-EARLY_STOPPING = 15
+EPOCH = 50
+bs = 128
+EARLY_STOPPING = 5
 EMBEDDING_DIM = 100
-train_on_splits = False
-K = 2
+train_on_splits = True
 lr = 1e-4
 
 
 def train_model(log_dir, file_path, dataloader, val_dataloader=None, split=None):
-    model = GraphAutoencoder(latent_dim=EMBEDDING_DIM, lr=lr, file_path=file_path, n_users=10000, n_items=1000, loss=LOSS)
+    model = GraphAutoencoder(latent_dim=EMBEDDING_DIM, lr=lr, file_path=file_path, n_users=10000, n_items=1000,
+                             loss=LOSS)
     print('Moving model to cuda')
     model = model.to('cuda:0')
     optimizer = model.configure_optimizers()
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
     print(optimizer)
-
-    j = None
 
     best_val_loss = None
     early_stopping = 0
@@ -48,29 +46,20 @@ def train_model(log_dir, file_path, dataloader, val_dataloader=None, split=None)
             for i, x in enumerate(batch):
                 if x is not None:
                     batch[i] = x.to('cuda:0')
-            loss, eval = model.training_step(batch, batch_idx=0)
+            loss, eval = model.training_step(batch, 0)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             train_loss += loss
-            eval += eval
+            train_eval += eval
         print(f'Train Loss: {train_loss / len(dataloader)}')
+        logging.info(f'Train Loss: {train_loss / len(dataloader)}')
         print(f'Train Eval: {train_eval/len(dataloader)}')
+        print(f'Train Eval:{train_eval/len(dataloader)}')
         model.eval()
         print(torch.multinomial(torch.ones(size=(5,)), num_samples=4, generator=dataloader.generator))
-        if j is None:
-            j = (model.phi(torch.arange(1, 4, device='cuda:0')), model.phi_IC(torch.arange(1, 4, device='cuda:0')),
-                 model.phi_UC(torch.arange(1, 4, device='cuda:0')))
-        else:
-            val = (model.phi(torch.arange(1, 4, device='cuda:0')), \
-                   model.phi_IC(torch.arange(1, 4, device='cuda:0')), model.phi_UC(torch.arange(1, 4, device='cuda:0')))
-            # val = model.phi(torch.arange(1,4, device='cuda:0'))
-            print(f'embedding_diff: {torch.norm(val[0] - j[0])}')
-            # ic and uc embeddings don't change massively....
-            print(f'IC embedding_diff: {torch.norm(val[1] - j[1])}')
-            print(f'UC embedding_diff: {torch.norm(val[2] - j[2])}')
-            j = val
         if val_dataloader is not None:
+            val_eval = 0
             print(f'Validating')
             model.eval()
             with torch.no_grad():
@@ -78,12 +67,16 @@ def train_model(log_dir, file_path, dataloader, val_dataloader=None, split=None)
                 for batch in tqdm(val_dataloader):
                     for i, x in enumerate(batch):
                         batch[i] = x.to('cuda:0')
-                    loss = model.validation_step(batch, batch_idx=0)
+                    loss, eval = model.validation_step(batch, 0)
                     val_loss += loss
+                    val_eval += eval
                 print(f'Val Loss: {val_loss / len(val_dataloader)}')
+                print(f'Val Eval: {val_eval /len(val_dataloader)}')
+
                 if best_val_loss is None:
                     best_val_loss = val_loss
                 elif val_loss < best_val_loss:
+                    print(f'New best model in epoch {epoch} {best_val_loss}')
                     early_stopping = 0
                     best_val_loss = val_loss
                     logging.info(f'New best model in epoch {epoch} {best_val_loss}')
@@ -93,7 +86,7 @@ def train_model(log_dir, file_path, dataloader, val_dataloader=None, split=None)
                         'loss': train_loss
                     }, log_dir + f'/model_best_{split}.pth')
         scheduler.step()
-        if epoch % 4 == 0:
+        if epoch % 2 == 0:
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
@@ -122,18 +115,19 @@ def main():
 
     print('Creating Dataloaders')
 
-    print('Beginning Training')
     if train_on_splits:
         for split in range(NUM_SPLITS):
-            dataset = Triplet_Dataset(file_path=path + f'{split}.csv', n_items=1000, n_users=10000, k=K)
+            dataset = Graph_Dataset(file_path=path + f'{split}.csv', n_items=1000, n_users=10000)
+            print('Adding to dataloader')
             dataloader = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=5)
-            val_dataset = Triplet_Dataset(file_path=val_path + f'{split}.csv', n_items=1000, n_users=10000, k=K)
+            val_dataset = Graph_Dataset(file_path=val_path + f'{split}.csv', n_items=1000, n_users=10000)
             val_dataloader = DataLoader(val_dataset, batch_size=bs, num_workers=5)
-            train_model(log_dir, dataloader, val_dataloader, split)
+            print('Beginning Training')
+            train_model(log_dir, path + f'{split}.csv', dataloader, val_dataloader, split)
     else:
-        dataset = Triplet_Dataset(file_path=f'data/raw/data_train.csv', n_items=1000, n_users=10000, k=K)
+        dataset = Triplet_Dataset(file_path=f'data/raw/data_train.csv', n_items=1000, n_users=10000)
         dataloader = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=5)
-        train_model(log_dir, dataloader)
+        train_model(log_dir, path + f'{split}.csv', dataloader)
 
 
 if __name__ == "__main__":

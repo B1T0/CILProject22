@@ -10,13 +10,12 @@ class GraphConvolution(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.dropout = dropout
-        self.weight = nn.Linear(in_features, out_features)
-        self.reset_parameters()
 
-    def reset_parameters(self):
-        torch.nn.init.xavier_uniform_(self.weight.weight)
+        #self.weight = nn.Linear(in_features, out_features)
+        #self.reset_parameters()
 
-    def forward(self, input, adj):
+
+    def forward(self, input, adj, weight):
         # currently no batch support on sparse multiplication
         # input = F.dropout(input, self.dropout, self.training)
         # #support = torch.mm(input, self.weight.weight)
@@ -27,10 +26,10 @@ class GraphConvolution(nn.Module):
 
         input = F.dropout(input, self.dropout, self.training)
         # support = torch.mm(input, self.weight.weight)
-        support = self.weight(input)
+        support = input.mm(weight)
         # print(adj.size())
         # print(support.size())
-        output = torch.smm(adj, support.squeeze())
+        output = torch.sparse.mm(adj, support.squeeze())
         # output = torch.matmul(adj.to_dense(), support)
         return output
 
