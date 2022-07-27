@@ -16,22 +16,15 @@ print(torch.cuda.device_count())
 path = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
 # model_path = '/home/jimmy/CILProject22/reports/logs/20220710-164447_finetuning/model_best.pth'
 #model_path = '/home/jimmy/CILProject22/reports/logs/20220714-232851_finetuning/model_best.pth'
-model_path = '/home/jimmy/CILProject22/reports/logs/20220725-230933_finetuning/model_best.pth'
+model_path = '/home/jimmy/CILProject22/reports/logs/20220727-023447_pretrain_norm_sgd/'
 EPOCH = 50
 bs = 16
 n_users = 1000
 
 
 def main():
-    pretrained = Model()
-    model = Prediction(pretrained)
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    print('Moving model to cuda')
-    model = model.to('cuda:0')
-    optimizer = model.configure_optimizers()
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1, verbose=True)
-    print(optimizer)
+
+
     run_id = time.strftime("%Y%m%d-%H%M%S")
     log_dir = f"/home/jimmy/CILProject22/reports/logs/{run_id}_prediction"
     if not os.path.exists(log_dir):
@@ -41,22 +34,23 @@ def main():
     print('Creating Dataloaders')
 
     model.eval()
-    indices_i = []
-    indices_j = []
+    indices_users = []
+    indices_movies = []
     df = pd.read_csv(path)
     for i, x in df.iterrows():
         name, _ = x['Id'], x['Prediction']
-        movie, user = name.replace('c', '').replace('r', '').split('_')
-        movie, user = int(movie) - 1, int(user) - 1
-        indices_i.append(user)
-        indices_j.append(movie + n_users)
+        user, movie = name.replace('c', '').replace('r', '').split('_')
+        user, movie = int(user) - 1, int(movie) - 1
+        indices_users.append(user)
+        indices_movies.append(movie + n_users)
 
-    users = torch.tensor(indices_i).to('cuda:0')
-    items = torch.tensor(indices_j).to('cuda:0')
+    users = torch.tensor(indices_users).to('cuda:0')
+    items = torch.tensor(indices_movies).to('cuda:0')
     dataset = TensorDataset(users, items)
     dataloader = DataLoader(dataset, batch_size=bs, shuffle=False)
     idx, predictions = [], []
     print('Beginning Prediction')
+
     with torch.no_grad():
         for batch in tqdm(dataloader):
             user, item = batch
@@ -65,7 +59,7 @@ def main():
             item_idx = item - n_users + 1
             prediction = prediction.cpu().numpy()
             for i in range(len(user_idx)):
-                idx.append(f'r{item_idx[i]}_c{user_idx[i]}')
+                idx.append(f'r{user_idx[i]}_c{movie_idx[i]}')
                 predictions.append(int(prediction[i]))
 
     df = pd.DataFrame({'Id': idx, 'Prediction': predictions})

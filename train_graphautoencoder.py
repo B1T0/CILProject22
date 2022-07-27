@@ -19,9 +19,9 @@ val_path = '/home/jimmy/CILProject22/data/raw/test_split_'
 LOSS = 'MSE'
 NUM_SPLITS = 5
 EPOCH = 50
-bs = 128
+bs = 32
 EARLY_STOPPING = 5
-EMBEDDING_DIM = 100
+EMBEDDING_DIM = 64
 train_on_splits = True
 lr = 1e-4
 
