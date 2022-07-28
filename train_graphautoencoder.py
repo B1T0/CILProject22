@@ -21,7 +21,7 @@ NUM_SPLITS = 5
 EPOCH = 50
 bs = 32
 EARLY_STOPPING = 5
-EMBEDDING_DIM =  32 #64 #100
+EMBEDDING_DIM =  48 #32 #64 #100
 train_on_splits = True
 lr = 1e-4
 
