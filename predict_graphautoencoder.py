@@ -15,13 +15,13 @@ print(torch.cuda.device_count())
 path = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
 # model_path = '/home/jimmy/CILProject22/reports/logs/20220710-164447_finetuning/model_best.pth'
 #model_path = '/home/jimmy/CILProject22/reports/logs/20220714-232851_finetuning/model_best.pth'
-model_dir = '/home/jimmy/CILProject22/reports/logs/20220727-023447_pretrain_norm_sgd'
+#model_dir = '/home/jimmy/CILProject22/reports/logs/20220727-023447_pretrain_norm_sgd'
+model_dir = '/home/jimmy/CILProject22/reports/logs/20220727-131830_pretrain_norm_sgd'
 graph_paths = '/home/jimmy/CILProject22/data/raw/train_split_'
 EPOCH = 50
-bs = 1
-n_users = 1000
+bs = 128
 SPLIT = 5
-EMBEDDING_DIM = 100
+EMBEDDING_DIM = 64 #100
 
 
 def main():
@@ -64,12 +64,15 @@ def main():
         with torch.no_grad():
             for batch in tqdm(dataloader):
                 user, movie = batch
+                # print(user)
+                # print(movie)
+                #break
                 prediction = model.forward(model.embeddings.weight, movie, user)
                 user_idx = user + 1
                 item_idx = movie + 1
                 prediction = prediction.cpu().numpy()
                 for i in range(len(user_idx)):
-                    idx_split.append(f'r{item_idx[i]}_c{user_idx[i]}')
+                    idx_split.append(f'r{user_idx[i]}_c{item_idx[i]}')
                     predictions_split.append(prediction[i])
 
             if len(idx) == 0:
@@ -87,7 +90,7 @@ def main():
     print(predictions.size())
     predictions = predictions.squeeze()
     df = pd.DataFrame({'Id': idx[0], 'Prediction': predictions})
-    df.to_csv(log_dir + '/submission_pretrained_mse_pc.csv', index=False)
+    df.to_csv(log_dir + '/submission_graphauto_encoder.csv', index=False)
 
 
 if __name__ == "__main__":

@@ -29,14 +29,26 @@ class GraphAutoencoder(pl.LightningModule):
 
         self.latent_dim = latent_dim
         self.in_features = latent_dim
-        self.out_features = latent_dim / 2
+        self.out_features = latent_dim
         self.user_embeddings = torch.nn.Embedding(
             num_embeddings=self.n_users, embedding_dim=self.latent_dim
         )
+
         self.movie_embeddings = torch.nn.Embedding(
             num_embeddings=self.n_items, embedding_dim=self.latent_dim
         )
 
+        self.own_embedding_dim = 10
+        #add additional learned convolution weight
+        self.user_own_embeddings = torch.nn.Embedding(
+            num_embeddings=self.n_users, embedding_dim=self.own_embedding_dim
+        )
+        self.movie_own_embeddings = torch.nn.Embedding(
+            num_embeddings=self.n_users, embedding_dim=self.own_embedding_dim
+        )
+
+        nn.init.xavier_uniform(self.user_embeddings.weight)
+        nn.init.xavier_uniform(self.movie_embeddings.weight)
         # mapping from user embeddings to movies
         indices_i_movies = [[] for _ in range(n_ratings)]
         indices_j_movies = [[] for _ in range(n_ratings)]
@@ -67,14 +79,14 @@ class GraphAutoencoder(pl.LightningModule):
             #
             self.adj_movies.append(torch.sparse_coo_tensor(torch.tensor([indices_i_movies[i], indices_j_movies[i]]),
                                                            torch.ones(size=(len(indices_i_movies[i]),)),
-                                                           size=[self.n_items, self.n_users]).coalesce())
+                                                           size=[self.n_items, self.n_users]).coalesce().float())
         print(f'Movie matrix {self.adj_movies[0].size()}')  # expecting 1000 x 10000
 
         self.adj_users = []
         for i in range(n_ratings):
             self.adj_users.append(torch.sparse_coo_tensor(torch.tensor([indices_i_users[i], indices_j_users[i]]),
                                                           torch.ones(size=(len(indices_i_users[i]),)),
-                                                          size=[self.n_users, self.n_items]).coalesce())
+                                                          size=[self.n_users, self.n_items]).coalesce().float())
         print(f'User matrix {self.adj_users[0].size()}')
         # normalize
         # might use attention mechanism for normalization
@@ -116,10 +128,10 @@ class GraphAutoencoder(pl.LightningModule):
         self.hidden = 32
         print(self.out_features)
         self.user_dense = nn.Sequential(
-            nn.Linear(int(self.intermediate), self.hidden),
-            nn.Linear(self.hidden, self.hidden),
+            nn.Linear(int(self.intermediate), 2*self.hidden),
+            nn.Linear(2* self.hidden, 2*self.hidden),
             nn.ReLU(),
-            nn.Linear(self.hidden, self.hidden),
+            nn.Linear(2*self.hidden, self.hidden),
             nn.Linear(self.hidden, self.n_items),
             ScaledSigmoid()
         )
@@ -150,7 +162,7 @@ class GraphAutoencoder(pl.LightningModule):
 
         if self.user_mode:
             output = []
-            weight = [torch.zeros((int(self.in_features), int(self.out_features)), device=self.device)]
+            weight = [torch.zeros((int(self.in_features), int(self.out_features)), device=self.device).float()]
             for i in range(self.n_rating):
                 # print(weight.size())
                 # print(self.weight_matrices[i].size())
@@ -165,7 +177,7 @@ class GraphAutoencoder(pl.LightningModule):
             output = self.user_dense(output)
         else:
             output = []
-            weight = [torch.zeros((int(self.in_features), int(self.out_features)), device=self.device)]
+            weight = [torch.zeros((int(self.in_features), int(self.out_features)), device=self.device).float()]
 
             for i in range(self.n_rating):
                 weight.append(self.weight_matrices[i] + weight[-1])
@@ -182,7 +194,7 @@ class GraphAutoencoder(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
-    def training_step(self, train_batch):
+    def training_step(self, train_batch, batch_idx):
         """
         basic training step
         :param train_batch:
@@ -193,10 +205,11 @@ class GraphAutoencoder(pl.LightningModule):
         ids, rows = train_batch #we receive dense rows
         mask = rows != 0
         pred = self.forward(ids)
-        loss = self.loss(rows[mask], pred[mask])
+
+        loss = self.loss(pred[mask].float(), rows[mask].float())
         return loss
 
-    def validation_step(self, train_batch, batch_num):
+    def validation_step(self, train_batch, batch_idx):
         """
         basic validation step
         :param x:
@@ -206,5 +219,5 @@ class GraphAutoencoder(pl.LightningModule):
         ids, rows = train_batch  # we receive dense rows
         mask = rows != 0
         pred = self.forward(ids)
-        loss = self.loss(rows[mask], pred[mask])
+        loss = self.loss(pred[mask].float(), rows[mask].float())
         return loss
