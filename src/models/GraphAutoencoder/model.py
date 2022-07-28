@@ -8,6 +8,10 @@ from src.models.GraphAutoencoder.layer import GraphConvolution
 import torch.nn.functional as F
 
 
+#To Dos
+# -introduce attention in aggregation
+# -add small user embedding not used for aggregation
+
 class GraphAutoencoder(pl.LightningModule):
 
     def __init__(self, latent_dim, n_users, n_items, file_path, loss='MSE', accum='stack', lr=1e-4,

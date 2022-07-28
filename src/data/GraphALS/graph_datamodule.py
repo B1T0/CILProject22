@@ -22,6 +22,7 @@ class Graph_Dataset(Dataset):
 
         # self.graph = torch.sparse_coo_tensor()
         self.user = user
+        print(f'Dataset user mode: {user}')
         #gives out users
         self.len = len(self.df)
         self.n_users = n_users

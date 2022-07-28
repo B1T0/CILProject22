@@ -2,9 +2,10 @@ import torch
 import pandas as pd
 
 
-def left_normalize_adj(adj: torch.sparse.Tensor):
-    degrees = adj.to_dense().sum(dim=1)
-    degrees = 1 / degrees
+def left_normalize_adj(adj:torch.sparse.Tensor):
+    degrees = adj.to_dense().sum(dim=1).float()
+    degrees = 1/degrees
+
     print(f'normalization matrix {degrees.size()}')
     print(f'adjacency matrix {adj.size()}')
     print(torch.diag(degrees).size())
