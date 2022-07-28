@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import pandas as pd
 from src.models.GraphAutoencoder.layer import ScaledSigmoid
-from src.models.GraphALS.utils import left_normalize_adj
+from src.models.GraphALS.utils import left_normalize_adj, create_user_movie_adjancency_matrices
 from src.models.GraphAutoencoder.layer import GraphConvolution
 import torch.nn.functional as F
 
@@ -11,12 +11,13 @@ import torch.nn.functional as F
 class GraphAutoencoder(pl.LightningModule):
 
     def __init__(self, latent_dim, n_users, n_items, file_path, loss='MSE', accum='stack', mode='user_mode', lr=1e-4,
-                 n_ratings=5):
+                 n_ratings=5, use_internal_embeddings = False):
         super(GraphAutoencoder, self).__init__()
         self.n_users = n_users
         self.n_items = n_items
         self.n = n_users + n_items
         self.n_rating = n_ratings
+        self.use_internal_embeddings = use_internal_embeddings
         self.lr = lr
         self.mode = mode
         print(f"Mode {mode}")
@@ -34,9 +35,15 @@ class GraphAutoencoder(pl.LightningModule):
             num_embeddings=self.n_users, embedding_dim=self.latent_dim
         )
 
+        #optional usage if we need to decouble things
+        self.user_internal_embeddings = torch.nn.Embedding(
+            num_embeddings=self.n_users, embedding_dim=self.latent_dim
+        )
+
         self.movie_embeddings = torch.nn.Embedding(
             num_embeddings=self.n_items, embedding_dim=self.latent_dim
         )
+
 
         self.own_embedding_dim = 10
         #add additional learned convolution weight
@@ -50,43 +57,9 @@ class GraphAutoencoder(pl.LightningModule):
         nn.init.xavier_uniform(self.user_embeddings.weight)
         nn.init.xavier_uniform(self.movie_embeddings.weight)
         # mapping from user embeddings to movies
-        indices_i_movies = [[] for _ in range(n_ratings)]
-        indices_j_movies = [[] for _ in range(n_ratings)]
+        self.adj_movies, self.adj_users = create_user_movie_adjancency_matrices(file_path, n_ratings, n_users, n_items)
 
-        # mapping from movie embeddings to users
-        indices_i_users = [[] for _ in range(n_ratings)]
-        indices_j_users = [[] for _ in range(n_ratings)]
-
-        df = pd.read_csv(file_path)
-        print('Creating adjacency matrices')
-        for i, x in df.iterrows():
-            name, val = x['Id'], x['Prediction']
-            user, movie = name.replace('c', '').replace('r', '').split('_')
-            user, movie = int(user) - 1, int(movie) - 1
-            val = int(val) - 1
-            if user > n_users:
-                raise Exception(f"More users in file")
-            if movie > n_items:
-                raise Exception(f"More movies in file")
-            indices_i_movies[val].append(movie)
-            indices_j_movies[val].append(user)
-            #
-            indices_i_users[val].append(user)
-            indices_j_users[val].append(movie)
-
-        self.adj_movies = []
-        for i in range(n_ratings):
-            #
-            self.adj_movies.append(torch.sparse_coo_tensor(torch.tensor([indices_i_movies[i], indices_j_movies[i]]),
-                                                           torch.ones(size=(len(indices_i_movies[i]),)),
-                                                           size=[self.n_items, self.n_users]).coalesce().float())
         print(f'Movie matrix {self.adj_movies[0].size()}')  # expecting 1000 x 10000
-
-        self.adj_users = []
-        for i in range(n_ratings):
-            self.adj_users.append(torch.sparse_coo_tensor(torch.tensor([indices_i_users[i], indices_j_users[i]]),
-                                                          torch.ones(size=(len(indices_i_users[i]),)),
-                                                          size=[self.n_users, self.n_items]).coalesce().float())
         print(f'User matrix {self.adj_users[0].size()}')
         # normalize
         # might use attention mechanism for normalization
@@ -106,9 +79,6 @@ class GraphAutoencoder(pl.LightningModule):
         self.weight_matrices = nn.ParameterList(self.weight_matrices)
         for i in range(n_ratings):
             nn.init.xavier_uniform(self.weight_matrices[i])
-        # #
-        # for i in range(self.n_ratings):
-        #     self.norm_adj[i] = self.norm_adj[i].to_sparse_csr()
 
         # GCN
         self.gcn1 = [GraphConvolution(in_features=self.latent_dim, out_features=self.out_features, dropout=0.25) for _
@@ -124,6 +94,11 @@ class GraphAutoencoder(pl.LightningModule):
         if accum == 'sum':
             self.accum = lambda x: torch.stack(x, dim=1).sum(dim=1)
             self.intermediate = self.out_features
+
+        if self.use_internal_embeddings: #we ignore polynomial filters here -->
+            #but we specify whether identity should play a role or not
+            #replace later with possibly completely internal usage
+            self.intermediate += self.latent_dim
 
         self.hidden = 32
         print(self.out_features)
@@ -156,7 +131,22 @@ class GraphAutoencoder(pl.LightningModule):
             raise Exception(f"Loss {loss} not implemented")
 
         self.mse = nn.MSELoss()
-        #self.decoder = nn.Bilinear(int(self.out_features), int(self.out_features), int(self.output_size))
+
+    def freeze_user(self):
+        print('Freezing User Embeddings')
+        self.user_embeddings.requires_grad_(False)
+
+    def unfreeze_user(self):
+        print('Unfreezing User Embeddings')
+        self.user_embeddings.requires_grad_(True)
+
+    def freeze_item(self):
+        print('Freezing User Embeddings')
+        self.movie_embeddings.requires_grad_(False)
+
+    def unfreeze_item(self):
+        print('Unfreezing User Embeddings')
+        self.movie_embeddings.requires_grad_(True)
 
     def forward(self, idx):
 
@@ -164,13 +154,13 @@ class GraphAutoencoder(pl.LightningModule):
             output = []
             weight = [torch.zeros((int(self.in_features), int(self.out_features)), device=self.device).float()]
             for i in range(self.n_rating):
-                # print(weight.size())
-                # print(self.weight_matrices[i].size())
                 weight.append(self.weight_matrices[i] + weight[-1])
                 output.append(self.gcn1[i](self.movie_embeddings.weight, self.norm_adj_users[i], weight[-1]))
 
             output = self.accum(output) #also add user_embedding?
             output = output[idx]
+            if self.use_internal_embeddings:
+                output = torch.concat([output, self.user_embeddings[idx]], dim = 1)
             # output = torch.relu(output.to_dense())
             output = torch.relu(output)
             # print(output.size())
@@ -182,13 +172,15 @@ class GraphAutoencoder(pl.LightningModule):
             for i in range(self.n_rating):
                 weight.append(self.weight_matrices[i] + weight[-1])
                 output.append(self.gcn1[i](self.user_embeddings.weight, self.norm_adj_movies[i], weight[-1]))
-
+            #
             output = self.accum(output)  # also add user_embedding?
             output = output[idx]
+            if self.user_internal_embeddings:
+                output = torch.concat([output, self.movie_embeddings[idx]], dim = 1)
             # output = torch.relu(output.to_dense())
             output = torch.relu(output)
-            # print(output.size())
             output = self.movie_dense(output)
+
         return output
 
     def configure_optimizers(self):

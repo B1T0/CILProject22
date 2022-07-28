@@ -1,3 +1,4 @@
+import logging
 import sys
 import torch
 from config import config
@@ -62,10 +63,13 @@ class WandbImageLogger:
 
 
 def log_params(log_dir):
-    #with open(f'{log_dir}/hyperparameters.json', 'w', encoding='utf-8') as f:
+    # with open(f'{log_dir}/hyperparameters.json', 'w', encoding='utf-8') as f:
     #    json.dump(params[config['model']], f, ensure_ascii=False, indent=4)
-    #with open(f'{log_dir}/config.json', 'w', encoding='utf-8') as f:
+    # with open(f'{log_dir}/config.json', 'w', encoding='utf-8') as f:
     #    json.dump(config, f, ensure_ascii=False, indent=4)
-    pass 
+    pass
 
 
+def log(msg):
+    print(msg)
+    logging.info(msg)
