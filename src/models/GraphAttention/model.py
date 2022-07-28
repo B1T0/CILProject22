@@ -8,7 +8,7 @@ from src.models.GraphAutoencoder.utils import create_full_adjacency_matrix
 
 class GraphAttention(pl.LightningModule):
 
-    def __init__(self, latent_dim, n_users, n_items, file_path, graph_hidden=32, hidden=32, alpha=1.0, loss='MSE',
+    def __init__(self, latent_dim, n_users, n_items, file_path, graph_hidden=32, hidden=32, alpha=0.2, loss='MSE',
                  accum='stack', mode='user_mode', lr=1e-4,
                  n_ratings=5, use_internal_embeddings=False):
         super(GraphAttention, self).__init__()
