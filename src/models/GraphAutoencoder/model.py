@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import pandas as pd
 from src.models.GraphAutoencoder.layer import ScaledSigmoid
-from src.models.GraphAutoencoder.utils import normalize_adj
+from src.models.GraphAutoencoder.utils import normalize_adj, create_full_adjacency_matrix
 from src.models.GraphAutoencoder.layer import GraphConvolution
 import torch.nn.functional as F
 
@@ -24,39 +24,8 @@ class GraphAutoencoder(pl.LightningModule):
         self.embeddings = torch.nn.Embedding(
             num_embeddings=self.n, embedding_dim=self.latent_dim
         )
-        # self.embedding_user = torch.nn.Embedding(
-        #     num_embeddings = self.n_users, embedding_dim=self.latent_dim
-        # )
-        # self.embedding_item = torch.nn.Embedding(
-        #     num_embeddings= self.n_items, embedding_dim=self.latent_dim
-        # )
 
-        indices_i = [[] for _ in range(n_ratings)]
-        indices_j = [[] for _ in range(n_ratings)]
-
-        df = pd.read_csv(file_path)
-        print('Creating adjacency matrices')
-        for i, x in df.iterrows():
-            name, val = x['Id'], x['Prediction']
-            user, movie = name.replace('c', '').replace('r', '').split('_')
-            user, movie = int(user) - 1, int(movie) - 1
-            val = int(val) - 1
-            if user > n_users:
-                raise Exception(f"More users in file")
-            if movie > n_items:
-                raise Exception(f"More movies in file")
-            indices_i[val].append(movie)
-            indices_j[val].append(user + n_items)
-            #
-            indices_i[val].append(user + n_items)
-            indices_j[val].append(movie)
-
-        self.adj = []
-        for i in range(n_ratings):
-            self.adj.append(torch.sparse_coo_tensor(torch.tensor([indices_i[i], indices_j[i]]),
-                                                    torch.ones(size=(len(indices_i[i]),)),
-                                                    size=[self.n, self.n]).coalesce())
-        torch.autograd.set_detect_anomaly(True)
+        self.adj = create_full_adjacency_matrix(file_path, n_ratings, n_users, n_items)
         # normalize
         # might use attention mechanism for normalization
         self.norm_adj = [nn.Parameter(normalize_adj(adj), requires_grad=False) for adj in self.adj]
@@ -68,9 +37,6 @@ class GraphAutoencoder(pl.LightningModule):
         self.weight_matrices = nn.ParameterList(self.weight_matrices)
         for i in range(n_ratings):
             nn.init.xavier_uniform(self.weight_matrices[i])
-        # #
-        # for i in range(self.n_ratings):
-        #     self.norm_adj[i] = self.norm_adj[i].to_sparse_csr()
 
         # GCN
         self.gcn1 = [GraphConvolution(in_features=self.latent_dim, out_features=self.out_features, dropout=0.25) for _ in
@@ -135,8 +101,6 @@ class GraphAutoencoder(pl.LightningModule):
         # print(user_embeddings.size())
 
         # item_mask, user_mask = torch.split(mask, [1000, 10000])
-        # item_embeddings = item_embeddings[mask]
-        # user_embeddings = user_embeddings[mask]
         item_embeddings = item_embeddings[items]
         # print(item_embeddings.size())
         user_embeddings = user_embeddings[users]
