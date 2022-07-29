@@ -12,17 +12,33 @@ from torch.utils.data import DataLoader
 print(torch.cuda.device_count())
 
 path = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
-model_dir = '/home/jimmy/CILProject22/reports/logs/20220727-131830_pretrain_norm_sgd'
+#model_dir = '/home/jimmy/CILProject22/reports/logs/20220727-131830_pretrain_norm_sgd'
+#model_dir = '/home/jimmy/CILProject22/reports/logs/20220729-003141_graph_attention_128_0.2_64_64_movie_mode'
+model_dir = '/home/jimmy/CILProject22/reports/logs/20220729-130520_graph_attention_split_2-2_128_0.2_48_64_movie_mode'
+#model_path = '/home/jimmy/CILProject22/reports/logs/20220729-003141_graph_attention_128_0.2_64_64_movie_mode/model_best_0.pth'
 graph_paths = '/home/jimmy/CILProject22/data/raw/train_split_'
+concat_dir = '/home/jimmy/CILProject22/reports/logs/20220729-135056_graph_attention_prediction'
 EPOCH = 50
 bs = 128
+SPLIT_BEGIN = 4
 SPLIT = 5
 
-MODE = 'user_mode'
-EMBEDDING_DIM = 32
-GRAPH_HIDDEN = 32
-HIDDEN = 32
+#MODE = 'user_mode'
+MODE = "movie_mode"
+EMBEDDING_DIM = 128
+GRAPH_HIDDEN = 64
+HIDDEN = 48
 ALPHA = 0.2
+# EMBEDDING_DIM = 64
+# GRAPH_HIDDEN = 48
+# HIDDEN = 64
+# ALPHA = 0.2
+NODE_DROPOUT = 0.10
+# EMBEDDING_DIM = 32
+# GRAPH_HIDDEN = 32
+# HIDDEN = 32
+
+PREDICT_SPLITS = False
 
 
 def main():
@@ -50,7 +66,7 @@ def main():
     dataloader = DataLoader(dataset, batch_size=bs, shuffle=False)
     idx, predictions = [], []
     print('Beginning Prediction')
-    for split in range(SPLIT):
+    for split in range(SPLIT_BEGIN, SPLIT):
         print(f'Prediction split {split}')
         idx_split, predictions_split = [], []
         file_path = graph_paths + f'{split}.csv'
@@ -58,6 +74,8 @@ def main():
                                mode=MODE, graph_hidden=GRAPH_HIDDEN, hidden=HIDDEN, alpha=ALPHA)
 
         model_path = model_dir + f'/model_best_{split}.pth'
+        #print("Using hardcoded model path")
+        #model_path = '/home/jimmy/CILProject22/reports/logs/20220729-003141_graph_attention_128_0.2_64_64_movie_mode/model_30_0.pth'
 
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint['model_state_dict'])
@@ -66,11 +84,17 @@ def main():
         model = model.to('cuda:0')
         with torch.no_grad():
             if MODE == 'user_mode':
-                i = 10000
+                max_idx = 10000
             elif MODE == 'movie_mode':
-                i = 1000
+                max_idx = 1000
+            rows = TensorDataset(torch.arange(0, max_idx).cuda())
+            rows_loader = DataLoader(rows, batch_size=1, shuffle=False)
+            ratings = []
+            for batch in tqdm(rows_loader):
+                ratings.append(model.forward(batch))
 
-            rating_matrix = model.forward(torch.arange(0, i))
+            print(ratings[0].size())
+            rating_matrix = torch.cat(ratings, dim=0)
             print(rating_matrix.size())
             #user must be first dimension
             if MODE =='user_mode':
@@ -78,7 +102,7 @@ def main():
             for batch in tqdm(dataloader):
                 user, movie = batch
 
-                prediction = rating_matrix[batch]
+                prediction = rating_matrix[movie, user]
                 user_idx = user + 1
                 item_idx = movie + 1
                 prediction = prediction.cpu().numpy()
@@ -93,16 +117,28 @@ def main():
             df = pd.DataFrame({'Id': idx[0], 'Prediction': predictions_split})
             df.to_csv(log_dir + f'/submission_{split}.csv', index=False)
 
-            predictions.append(predictions_split)
+            #predictions.append(predictions_split)
 
+    #predictions = torch.tensor(predictions)
+
+
+def concatenate():
+    print('Begin Concatenation')
+    predictions = []
+    idx = []
+    for i in range(SPLIT):
+        df = pd.read_csv(concat_dir + f'/submission_{i}.csv')
+        predictions.append(df['Prediction'].to_numpy())
+        idx.append(df['Id'])
     predictions = torch.tensor(predictions)
     print(predictions.size())
     predictions = torch.mean(predictions, dim=0)
     print(predictions.size())
     predictions = predictions.squeeze()
     df = pd.DataFrame({'Id': idx[0], 'Prediction': predictions})
-    df.to_csv(log_dir + '/submission_graphattention.csv', index=False)
+    df.to_csv(concat_dir + '/submission_graphattention_avg.csv', index=False)
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    concatenate()

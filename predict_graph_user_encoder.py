@@ -12,22 +12,20 @@ from torch.utils.data import DataLoader
 print(torch.cuda.device_count())
 
 path = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
-model_dir = '/home/jimmy/CILProject22/reports/logs/20220727-131830_pretrain_norm_sgd'
+model_dir = '/home/jimmy/CILProject22/reports/logs/20220728-215328_graphautoencoder_16_user_mode'
 graph_paths = '/home/jimmy/CILProject22/data/raw/train_split_'
 EPOCH = 50
 bs = 128
 SPLIT = 5
 
 MODE = 'user_mode'
-EMBEDDING_DIM = 32
-GRAPH_HIDDEN = 32
-HIDDEN = 32
-ALPHA = 0.2
+EMBEDDING_DIM = 16
+
 
 
 def main():
     run_id = time.strftime("%Y%m%d-%H%M%S")
-    log_dir = f"/home/jimmy/CILProject22/reports/logs/{run_id}_graph_attention_prediction"
+    log_dir = f"/home/jimmy/CILProject22/reports/logs/{run_id}_graph_user_encoder_prediction"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
         # Create logging file
@@ -75,10 +73,11 @@ def main():
             #user must be first dimension
             if MODE =='user_mode':
                 rating_matrix = rating_matrix.transpose(0, 1)
+            print(rating_matrix.size())
             for batch in tqdm(dataloader):
                 user, movie = batch
-
-                prediction = rating_matrix[batch]
+                #print(user)
+                prediction = rating_matrix[movie, user]
                 user_idx = user + 1
                 item_idx = movie + 1
                 prediction = prediction.cpu().numpy()
@@ -101,7 +100,7 @@ def main():
     print(predictions.size())
     predictions = predictions.squeeze()
     df = pd.DataFrame({'Id': idx[0], 'Prediction': predictions})
-    df.to_csv(log_dir + '/submission_graphattention.csv', index=False)
+    df.to_csv(log_dir + '/submission_graph_user_encoder.csv', index=False)
 
 
 if __name__ == "__main__":

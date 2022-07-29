@@ -36,9 +36,9 @@ class GraphAutoencoder(pl.LightningModule):
         )
 
         #optional usage if we need to decouble things
-        self.user_internal_embeddings = torch.nn.Embedding(
-            num_embeddings=self.n_users, embedding_dim=self.latent_dim
-        )
+        # self.user_internal_embeddings = torch.nn.Embedding(
+        #     num_embeddings=self.n_users, embedding_dim=self.latent_dim
+        # )
 
         self.movie_embeddings = torch.nn.Embedding(
             num_embeddings=self.n_items, embedding_dim=self.latent_dim
