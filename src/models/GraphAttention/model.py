@@ -190,6 +190,8 @@ class GraphAttention(pl.LightningModule):
         """
         ids, rows = train_batch  # we receive dense rows
         mask = rows != 0
+        if self.user_mode:
+            ids += self.n_items
         pred = self.forward(ids)
         loss = self.loss(rows[mask], pred[mask].float())
         return loss

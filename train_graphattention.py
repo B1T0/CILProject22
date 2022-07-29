@@ -20,27 +20,27 @@ val_path = '/home/jimmy/CILProject22/data/raw/test_split_'
 FINETUNING = False
 SAVED_DIR = '/home/jimmy/CILProject22/reports/logs/20220729-130520_graph_attention_split_2-2_128_0.2_48_64_movie_mode'
 LOSS = 'MSE'
-# TRAIN_MODE = "user_mode"  # defining user as movie embeddings and recreating user rows
-TRAIN_MODE = "movie_mode"
+TRAIN_MODE = "user_mode"  # defining user as movie embeddings and recreating user rows
+# TRAIN_MODE = "movie_mode"
 # TRAIN_MODE = "alternating"
 
 NUM_SPLITS = 5
-EPOCH = 400
-bs = 16
-EARLY_STOPPING = 50
-EMBEDDING_DIM = 128
-GRAPH_HIDDEN = 64
-HIDDEN = 48
+EPOCH = 500
+bs = 32
+EARLY_STOPPING = 40
+EMBEDDING_DIM = 64
+GRAPH_HIDDEN = 32
+HIDDEN = 32
 ALPHA = 0.2
-STEP_SIZE_SCHEDULER = 150
-STEP_SIZE_START = 100
+STEP_SIZE_SCHEDULER = 50
+STEP_SIZE_START = 50
 train_on_splits = True
 lr = 1e-4
-DROPOUT = 0.25
+DROPOUT = 0.0
 
-MODEL_SAVE = 100
-
-SPLIT_START = 0
+MODEL_SAVE = 50
+SAVE_EPOCH = 50
+SPLIT_START = 2
 
 
 def train_model_splits(log_dir, file_path, dataloader, user_mode=True, val_dataloader=None, split=None):
@@ -63,7 +63,7 @@ def train_model_splits(log_dir, file_path, dataloader, user_mode=True, val_datal
     log('Moving model to cuda')
     model = model.to('cuda:0')
     optimizer = model.configure_optimizers()
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE_SCHEDULER, gamma=0.5, verbose=True)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE_SCHEDULER, gamma=0.3, verbose=True)
 
     log(optimizer)
     best_val_loss = None
@@ -104,7 +104,7 @@ def train_model_splits(log_dir, file_path, dataloader, user_mode=True, val_datal
                     log(f'New best model in epoch {epoch} {best_val_loss}')
                     early_stopping = 0
                     best_val_loss = val_loss
-                    if epoch >= STEP_SIZE_START:
+                    if epoch >= SAVE_EPOCH:
                         log('Saving best model')
                         torch.save({
                             'epoch': epoch,
