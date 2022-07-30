@@ -22,9 +22,9 @@ EVAL_PATH = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
 
 NUM_SPLITS = 10
 
-EPOCH = 200
+EPOCH = 30
 bs = 32
-EARLY_STOPPING = 30
+EARLY_STOPPING = 5
 EMBEDDING_DIM = 30  # 20 #24 #best current #40 overfitting # 32, # 64 overfitting
 train_on_splits = True
 lr = 1e-3
@@ -96,7 +96,10 @@ def predict(model, log_dir, split=0):
     with torch.no_grad():
         for batch in tqdm(dataloader):
             batch, _ = batch
-            prediction = model.forward(batch)
+            x1 = []
+            for i, j in enumerate(batch):
+                x1.append(j.to('cuda:0'))
+            prediction = model.forward(x1)
             user_idx = batch[0]
             item_idx = batch[1]
             prediction = prediction.cpu().numpy()
@@ -114,7 +117,7 @@ def train_model(log_dir, dataloader, global_mean,
     print('Moving model to cuda')
     model = model.to('cuda:0')
     optimizer = model.configure_optimizers()
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
     best_val_score, model = train_loop(model, optimizer, scheduler, dataloader, log_dir, val_dataloader, split)
 
     predict(model, log_dir)

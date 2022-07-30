@@ -11,7 +11,7 @@ class SVDPP(pl.LightningModule):
     def __init__(self, num_users, num_items, global_mean, embedding_dim, lr=1e-4):
         super(SVDPP, self).__init__()
         self.gm = global_mean
-        self.lr = 1e-4
+        self.lr = lr
 
         # +1 because of padding
         self.P = nn.Embedding(num_users+1, embedding_dim)
@@ -43,7 +43,7 @@ class SVDPP(pl.LightningModule):
         return pred_r_ui
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.00001)
+        return torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=0.02)
 
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
