@@ -38,7 +38,7 @@ def train_split(log_directory, split=0):
     train_data = load_dataset(train_path, split)
     test_data = load_dataset(val_path, split)
 
-    algo = SVDpp(verbose=True, n_factors=50, n_epochs=30)
+    algo = SVDpp(verbose=True, n_factors=100, n_epochs=30)
     trainset = train_data.build_full_trainset()
     algo.fit(trainset)
     testset = test_data.build_full_trainset().build_testset()
