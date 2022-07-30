@@ -4,6 +4,7 @@ venv/
 __pycache__/
 src.egg-info/
 reports/logs/*
+models/*
 .idea/*
 .idea/
 *.pyc

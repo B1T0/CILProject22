@@ -6,7 +6,7 @@ import time
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
+from utils import train_model
 from src.data.GraphALS.graph_datamodule import Graph_Dataset
 from src.models.GraphAttention.model import GraphAttention
 from src.utils.logger import Logger, log
@@ -65,68 +65,7 @@ def train_model_splits(log_dir, file_path, dataloader, user_mode=True, val_datal
     optimizer = model.configure_optimizers()
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE_SCHEDULER, gamma=0.3, verbose=True)
 
-    log(optimizer)
-    best_val_loss = None
-    early_stopping = 0
-    for epoch in range(EPOCH):
-        log(f'Epoch {epoch}')
-
-        train_loss = 0
-        model.train()
-        for batch in tqdm(dataloader):
-            for i, x in enumerate(batch):
-                if x is not None:
-                    batch[i] = x.to('cuda:0')
-            loss = model.training_step(batch, 0)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            train_loss += loss
-
-        log(f'Train Loss: {train_loss / len(dataloader)}')
-
-        model.eval()
-
-        if val_dataloader is not None:
-            model.eval()
-            with torch.no_grad():
-                val_loss = 0
-                for batch in tqdm(val_dataloader):
-                    for i, x in enumerate(batch):
-                        batch[i] = x.to('cuda:0')
-                    loss = model.validation_step(batch, 0)
-                    val_loss += loss
-                log(f'Val Loss: {val_loss / len(val_dataloader)}')
-
-                if best_val_loss is None:
-                    best_val_loss = val_loss
-                elif val_loss < best_val_loss:
-                    log(f'New best model in epoch {epoch} {best_val_loss}')
-                    early_stopping = 0
-                    best_val_loss = val_loss
-                    if epoch >= SAVE_EPOCH:
-                        log('Saving best model')
-                        torch.save({
-                            'epoch': epoch,
-                            'model_state_dict': model.state_dict(),
-                            'loss': train_loss
-                        }, log_dir + f'/model_best_{split}.pth')
-        if epoch >= STEP_SIZE_START:
-            scheduler.step()
-        if epoch % MODEL_SAVE == 0 and epoch > 0:
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'loss': train_loss
-            }, log_dir + f'/model_{epoch}_{split}.pth')
-        if val_dataloader is not None:
-            early_stopping += 1
-            if early_stopping > EARLY_STOPPING:
-                break
-
-    if best_val_loss is not None:
-        log(f"Best Val Loss of split {split} {best_val_loss / len(val_dataloader)}")
-        return best_val_loss / len(val_dataloader)
+    train_model(model, optimizer, scheduler, log_dir, dataloader, val_dataloader, split, SA)
 
 
 def train_model_alternating(log_dir, file_path, dataloader_user, dateloader_movie, user_mode=True,

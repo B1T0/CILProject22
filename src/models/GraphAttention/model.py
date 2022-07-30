@@ -171,6 +171,9 @@ class GraphAttention(pl.LightningModule):
         :param batch_num:
         :return:
         """
+        for i, x in enumerate(train_batch):
+            if x is not None:
+                train_batch[i] = x.to('cuda:0')
         # x, y = train_batch  # item, ratings
         ids, rows = train_batch  # we receive dense rows
         mask = rows != 0

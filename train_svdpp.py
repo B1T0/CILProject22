@@ -23,12 +23,12 @@ EVAL_PATH = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
 NUM_SPLITS = 10
 
 EPOCH = 30
-bs = 32
+bs = 128
 EARLY_STOPPING = 5
-EMBEDDING_DIM = 30  # 20 #24 #best current #40 overfitting # 32, # 64 overfitting
+EMBEDDING_DIM = 20 #8 #16  # 20 #24 #best current #40 overfitting # 32, # 64 overfitting
 train_on_splits = True
 lr = 1e-3
-wd = 0.02
+wd = 0.1
 
 
 def train_loop(model, optimizer, scheduler, dataloader, log_dir, val_dataloader=None, split=0):
@@ -58,11 +58,11 @@ def train_loop(model, optimizer, scheduler, dataloader, log_dir, val_dataloader=
                 print(f'Val Loss: {val_loss / len(val_dataloader)}')
 
                 if best_val_loss is None:
-                    best_val_loss = val_loss
-                elif val_loss < best_val_loss:
+                    best_val_loss = val_loss/len(val_dataloader)
+                elif val_loss/len(val_dataloader) < best_val_loss:
                     print(f'New best model in epoch {epoch} {best_val_loss}')
                     early_stopping = 0
-                    best_val_loss = val_loss
+                    best_val_loss = val_loss/len(val_dataloader)
                     logging.info(f'New best model in epoch {epoch} {best_val_loss}')
                     torch.save({
                         'epoch': epoch,
@@ -119,7 +119,7 @@ def train_model(log_dir, dataloader, global_mean,
     print('Moving model to cuda')
     model = model.to('cuda:0')
     optimizer = model.configure_optimizers()
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=1.0)
     best_val_score, model = train_loop(model, optimizer, scheduler, dataloader, log_dir, val_dataloader, split)
 
     predict(model, log_dir)
