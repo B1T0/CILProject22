@@ -28,7 +28,7 @@ EARLY_STOPPING = 5
 EMBEDDING_DIM = 30  # 20 #24 #best current #40 overfitting # 32, # 64 overfitting
 train_on_splits = True
 lr = 1e-3
-wd = 0.05
+wd = 0.02
 
 
 def train_loop(model, optimizer, scheduler, dataloader, log_dir, val_dataloader=None, split=0):

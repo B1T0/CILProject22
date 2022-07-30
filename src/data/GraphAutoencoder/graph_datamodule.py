@@ -58,6 +58,7 @@ class Graph_Dataset(Dataset):
         self.user_indices = torch.tensor(indices_j)
         self.ratings = torch.tensor(values)
 
+        self.gm = torch.mean(self.ratings)
     def __len__(self):
         # cahng
         # return self.n
