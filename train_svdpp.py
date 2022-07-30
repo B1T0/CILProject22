@@ -28,6 +28,7 @@ EARLY_STOPPING = 5
 EMBEDDING_DIM = 30  # 20 #24 #best current #40 overfitting # 32, # 64 overfitting
 train_on_splits = True
 lr = 1e-3
+wd = 0.05
 
 
 def train_loop(model, optimizer, scheduler, dataloader, log_dir, val_dataloader=None, split=0):
@@ -113,7 +114,8 @@ def predict(model, log_dir, split=0):
 
 def train_model(log_dir, dataloader, global_mean,
                 val_dataloader=None, split=None):
-    model = SVDPP(num_users=10000, num_items=1000, embedding_dim=EMBEDDING_DIM, global_mean=global_mean, lr=lr)
+    model = SVDPP(num_users=10000, num_items=1000, embedding_dim=EMBEDDING_DIM,
+                  global_mean=global_mean, lr=lr, wd=wd)
     print('Moving model to cuda')
     model = model.to('cuda:0')
     optimizer = model.configure_optimizers()
