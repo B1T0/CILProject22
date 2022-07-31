@@ -66,14 +66,39 @@ python dual_embedding.py
 
 
 ### Graph-Encoder
-
+Change model name in config.py to 'GraphAutoencoder' and
+in the main folder, run
+```angular2html
+python train_graph_models.py
+```
+Hyperparameters can be set in the `hyperparameter.py` file in the `src/models`
 
 
 ### Graph-User-Encoder
-
+Change model name in config.py to 'GraphUserEncoder' and
+in the main folder, run
+```angular2html
+python train_graph_models.py
+```
+Hyperparameters can be set in the `hyperparameter.py` file in the `src/models`
 
 
 ### Graph-User-Encoder (Attention)
+Change model name in config.py to 'GraphAttention' and
+in the main folder, run
+```angular2html
+python train_graph_models.py
+```
+Hyperparameters can be set in the `hyperparameter.py` file in the `src/models`
+
+### SVD++ (Graph-Attention)
+Change model name in config.py to 'SVDGraphAttention' and
+in the main folder, run
+```angular2html
+python train_graph_models.py
+```
+Hyperparameters can be set in the `hyperparameter.py` file in the `src/models`
+
 
 
 
@@ -89,7 +114,7 @@ python dual_embedding.py
 |--------------------------------|----------------------------|-------------------|
 | Kaggle Baseline (SVD + ALS)    | -                          | 0.98777           |
 | SVD                            | X                          | X                 |
-| SVD++^*                        | 0.99712                    | 0.99601           |
+| SVD++                          | 0.99712                    | 0.99601           |
 | ALS                            | 0.98771                    | 0.98906           |
 | Mixture-of-Tastes              | 0.9896                     | 0.98353           |
 | Bias SGD                       | 0.98324                    | 0.97794           |
@@ -100,4 +125,5 @@ python dual_embedding.py
 | Graph-Encoder                  | 0.98130                    | 0.98273           |
 | Graph-User-Encoder             | 0.99003                    | 0.98626           |
 | Graph-User-Encoder (Attention) | 1.00627                    | 1.00889           |
+| Graph-Encoder (Attention)      | 1.0617                     | -                 |
 | Ensemble                       | -                          | X                 |
