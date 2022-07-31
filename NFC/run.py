@@ -12,6 +12,12 @@ import copy
 from time import sleep
 from model import NCF, rmse, predict
 
+'''
+By executing the script, it will first load the data you need for submission, then it will go into the split_numbers loop in which it will iterate over
+all 5-fold-cross-validation splits. In each split it will load the corresponding train and test data, train the model and predict for validation.
+After early stopping it will predict the submission files and write into a predict.csv file.
+'''
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Is Cuda available: ', torch.cuda.is_available())
 
