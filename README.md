@@ -3,11 +3,11 @@
 ### Authors: Tobias Scheithauer, Jie-Ming Li, Dustin Klebe, Lukas Wolf 
 
 # Table of Contents  
-### 1. Introduction 
-### 2. Models
-#### [ALS (ALS)](#ALS)
+### 1. [Introduction](#1-introduction)
+### 2. [Models] (#Models)
+#### [ALS (ALS)](#als)
 #### [SVD](#SVD)
-#### NCF
+#### [NCF](#ncf)
 #### Bias SGD 
 #### Autoencoder
 #### Dual Embedding
