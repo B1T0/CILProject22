@@ -215,7 +215,7 @@ for split in range(5):
     )
     preds.append(sub_pred_df)
 
-avg = np.mean(preds, axis=0)
+avg = np.mean([pred.Prediction for pred in preds], axis=0)
 sub_pred_df = pd.read_csv("../data/sampleSubmission.csv")
 sub_pred_df["Prediction"] = avg
 sub_pred_df.to_csv(f"../data/mot_init_dot_pred_sub_avg_submission.csv", index=False)
