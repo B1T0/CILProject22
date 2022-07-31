@@ -126,4 +126,4 @@ To compute the blending, copy the per-split predictions for the test splits as `
 | Graph-User-Encoder             | 0.9900                     | 0.9863            |
 | Graph-User-Encoder (Attention) | 1.0063                     | 1.0089            |
 | Graph-SVD++                    | 1.0617                     | -                 |
-| Ensemble                       | -                          | 0.9738            |
+| Ensemble                       | -                          | **0.9738**            |
