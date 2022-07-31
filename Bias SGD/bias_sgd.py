@@ -1,3 +1,8 @@
+"""
+Implementation of the Bias SGD approach 
+"""
+
+
 import numpy as np
 from sklearn.utils import shuffle
 import pandas as pd
@@ -8,9 +13,15 @@ import csv
 
 
 def RMSE(y, y_pred):
+    """
+    Computes root mean squared error
+    """
     return np.sqrt(np.mean((y - y_pred)**2))
 
 def read_data(train_path, impute_value=0, number_of_users=10000, number_of_movies=1000):
+    """
+    Reads in data from csv file and returns users, movies, ratings
+    """
     data_pd = pd.read_csv(train_path) 
     users, movies = [np.squeeze(arr) for arr in np.split(data_pd.Id.str.extract('r(\d+)_c(\d+)').values.astype(int) - 1, 2, axis=-1)]
     predictions = data_pd.Prediction.values
@@ -26,6 +37,7 @@ def write_predictions(preds, submission_file_path, save_path):
             # get user row and movie col from data matrix 
             f.write("r{}_c{},{}\n".format(user+1, movie+1, preds[i]))
     return np.array(preds)
+
 
 class BiasSGD:
     def __init__(self,
@@ -137,7 +149,9 @@ class BiasSGD:
                 lr /= decay
 
     def predict(self, test_users, test_movies):
-
+        """
+        Inference 
+        """
         predictions = list()
 
         for user, movie in zip(test_users, test_movies):
@@ -146,6 +160,9 @@ class BiasSGD:
         return np.array(predictions)
 
     def save(self, log_dir):
+        """
+        Save the model.
+        """
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         np.save(os.path.join(log_dir, 'U.npy'), self.U)
@@ -155,6 +172,9 @@ class BiasSGD:
         print('Model saved')
 
     def load(self, log_dir):
+        """
+        Load the model.
+        """
         self.U = np.load(os.path.join(log_dir, 'U.npy'))
         self.V = np.load(os.path.join(log_dir, 'V.npy'))
         self.biasU = np.load(os.path.join(log_dir, 'biasU.npy'))

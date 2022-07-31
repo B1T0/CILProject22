@@ -1,4 +1,7 @@
-# Copyright (c) 2017 NVIDIA Corporation
+"""
+Implementation of the dual embedding model
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,7 +17,9 @@ from config import config
 import csv 
 
 def activation(input, kind):
-  #print("Activation: {}".format(kind))
+  """
+  activation function
+  """
   if kind == 'selu':
     return F.selu(input)
   elif kind == 'relu':
@@ -37,6 +42,9 @@ def activation(input, kind):
     raise ValueError('Unknown non-linearity type')
 
 def MSEloss(inputs, targets, mask=None):
+  """
+  Mean squared error loss
+  """
   if mask == None:
     mask = targets != 0
   num_ratings = torch.sum(mask.float())
@@ -47,6 +55,9 @@ def MSEloss(inputs, targets, mask=None):
   return mse, num_ratings
 
 def RMSE(inputs, targets):
+  """
+  Root mean squared error
+  """
   return torch.sqrt(torch.mean((inputs - targets)**2))
 
 class AutoEncoder(nn.Module):
@@ -166,6 +177,9 @@ class MLP(nn.Module):
       return x
     
 class EmbeddingModel(nn.Module):
+  """
+  Describes an embedding model using two emeddings and a MLP
+  """
   def __init__(self, mlp, item_encoder, user_encoder):
     super(EmbeddingModel, self).__init__()
     self.item_encoder = item_encoder
@@ -276,12 +290,17 @@ def get_dataloaders(data_dir, split_number, batch_size=32):
     return train_dataloader, val_dataloader, data_matrix, val_mask
 
 def clip_data(data, clip_high=5, clip_low=1):
+    """
+    clip data to [clip_low, clip_high]
+    """
     data[data > clip_high] = clip_high
     data[data < clip_low] = clip_low
     return data
 
 def write_submission(model, data, submission_file_path, save_path):
-    # write submission
+    """
+    write submission file
+    """
     data_pd = pd.read_csv(submission_file_path) 
     test_users, test_movies = [np.squeeze(arr) for arr in np.split(data_pd.Id.str.extract('r(\d+)_c(\d+)').values.astype(int) - 1, 2, axis=-1)]
     preds = [] 
@@ -304,6 +323,9 @@ def write_submission(model, data, submission_file_path, save_path):
     return preds 
 
 def write_predictions(preds, submission_file_path, save_path):
+    """
+    write predictions to submission file
+    """
     data_pd = pd.read_csv(submission_file_path) 
     test_users, test_movies = [np.squeeze(arr) for arr in np.split(data_pd.Id.str.extract('r(\d+)_c(\d+)').values.astype(int) - 1, 2, axis=-1)]
     preds = clip_data(preds)
