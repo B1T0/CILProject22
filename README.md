@@ -23,7 +23,7 @@
 # 1. Introduction
 In most recommender systems, the number of rated user items is exceeded by the number of total items by several magnitudes. Therefore, the nature of the problem is hard due to it’s inherent sparsity. Today’s recommendation systems often rely on collaborative filtering approaches to compute recommendations for users on a personalised basis. Initial advances in collaborative filtering have been achieved using various blends of matrix factorization approaches, where a rating interaction is represented using latent user and movie variables. Recently, graph-convolutional methods based on spectral i.e. matrix graph representation have achieved SOTA results in the recommendation setting. Despite their seeming differences, we note that many of the classical matrix factorization can be described in the framework of graph convolution. In this project we explore possible augmentations of classical techniques using various graph convolutional techniques. 
 
-The models were implemented for the Computational Intelligence Lab 2022 @ETH Zürich at the Collaborative Filterig [kaggle](https://www.kaggle.com/competitions/cil-collaborative-filtering-2022/overview) competition.
+The models were implemented for the Computational Intelligence Lab 2022 @ETH Zürich in the Collaborative Filterig [kaggle](https://www.kaggle.com/competitions/cil-collaborative-filtering-2022/overview) competition.
 
 # 2. Models 
 
@@ -72,3 +72,19 @@ By running the script run.py the model will be built as specified in model.py, a
 
 
 # 3. Results
+| Model                          | RMSE (Training: 5-fold CV) | RMSE (Submission) |
+|--------------------------------|----------------------------|-------------------|
+| Kaggle Baseline (SVD + ALS)    | -                          | 0.98777           |
+| SVD                            | X                          | X                 |
+| SVD++^*                        | 0.99712                    | 0.99601           |
+| ALS                            | 0.98771                    | 0.98906           |
+| Mixture-of-Tastes              | 0.9896                     | 0.98353           |
+| Bias SGD                       | 0.98324                    | 0.97794           |
+| NCF                            | 0.98641                    | 0.98146           |
+| Autoencoder (item)             | 0.99586                    | 0.98381           |
+| Autoencoder (user)             | 0.96266                    | 0.97682           |
+| Dual Embedding                 | X                          | X                 |
+| Graph-Encoder                  | 0.98130                    | 0.98273           |
+| Graph-User-Encoder             | 0.99003                    | 0.98626           |
+| Graph-User-Encoder (Attention) | 1.00627                    | 1.00889           |
+| Ensemble                       | -                          | X                 |
