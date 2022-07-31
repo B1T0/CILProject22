@@ -11,17 +11,16 @@ from surprise import dump
 
 from src.utils.logger import Logger
 
-path = '/home/jimmy/CILProject22/data/raw/train_split_'
-# train_path = '/home/jimmy/CILProject22/data/raw/train_split_'
-# val_path = 'data/raw/test_split_'
-train_path = '/home/jimmy/CILProject22/data/raw/cv10/train_split_'
-val_path = '/home/jimmy/CILProject22/data/raw/cv10/test_split_'
-pred_file = '/home/jimmy/CILProject22/data/external/sampleSubmission_converted.csv'
-pred_dir = '/home/jimmy/CILProject22/reports/logs/20220730-164827_svdpp_30'
+path = 'data/raw/train_split_'
+
+train_path = 'data/raw/cv10/train_split_'
+val_path = 'data/raw/cv10/test_split_'
+pred_file = 'data/external/sampleSubmission_converted.csv'
+pred_dir = 'reports/logs/20220730-164827_svdpp_30'
 log_dir = 'models'
 TRAIN = False
-n_factors = 20 #
-weight_decay = 0.0015 # 0.1
+n_factors = 20  #
+weight_decay = 0.0015  # 0.1
 
 
 def preprocess(file_path, splits=5):
@@ -48,7 +47,7 @@ def load_dataset(file_dir, split=0):
     return data
 
 
-def train_split(log_directory, split=0, n_factors = 30, l2=0.1):
+def train_split(log_directory, split=0, n_factors=30, l2=0.1):
     train_data = load_dataset(train_path, split)
     test_data = load_dataset(val_path, split)
 
@@ -61,10 +60,10 @@ def train_split(log_directory, split=0, n_factors = 30, l2=0.1):
     logging.info(f'{split}: rmse: {rmse}')
     dump.dump(log_directory + f'/svdpp_default_{split}_{n_factors}_{l2}', algo=algo)
 
-def predict_split(log_directory, save_directory, split = 0, n_factors = 30, l2=0.1):
-    print("Loading model")
-    _, loaded_algo = dump.load(save_directory+f'/svdpp_default_{split}_{n_factors}_{l2}')
 
+def predict_split(log_directory, save_directory, split=0, n_factors=30, l2=0.1):
+    print("Loading model")
+    _, loaded_algo = dump.load(save_directory + f'/svdpp_default_{split}_{n_factors}_{l2}')
 
     df = pd.read_csv(pred_file)
     reader = Reader(rating_scale=(1, 5))
@@ -82,7 +81,8 @@ def predict_split(log_directory, save_directory, split = 0, n_factors = 30, l2=0
     df = pd.DataFrame(data)
     df.to_csv(log_directory + f'/submission_{split}.csv', index=False)
 
-def concatenate(concat_dir, splits = 10):
+
+def concatenate(concat_dir, splits=10):
     print('Begin Concatenation')
     predictions = []
     idx = []
@@ -97,6 +97,7 @@ def concatenate(concat_dir, splits = 10):
     predictions = predictions.squeeze()
     df = pd.DataFrame({'Id': idx[0], 'Prediction': predictions})
     df.to_csv(concat_dir + '/submission_graphattention_avg.csv', index=False)
+
 
 def main():
     run_id = time.strftime("%Y%m%d-%H%M%S")

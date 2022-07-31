@@ -9,13 +9,16 @@ from torch.utils.data import DataLoader
 from src.utils.logger import Logger
 import logging
 import sys
-print(torch.cuda.device_count())
 
 
-path = '/home/jimmy/CILProject22/data/raw/train_split_0.csv'
-val_path = '/home/jimmy/CILProject22/data/raw/test_split_0.csv'
-#model_path = '/home/jimmy/CILProject22/reports/logs/20220709-162957_pretrain_norm_sgd/model_20.pth'
-model_path = '/home/jimmy/CILProject22/reports/logs/20220725-182705_pretrain_norm_sgd/model_25.pth'
+"""
+Finetuning procedure for model trained after contrastive pretraining, 
+deprecated and not used for final report
+"""
+
+path = 'data/raw/train_split_0.csv'
+val_path = 'data/raw/test_split_0.csv'
+model_path = 'reports/logs/20220725-182705_pretrain_norm_sgd/model_25.pth'
 EPOCH = 50
 bs = 32
 FREEZE = True
@@ -27,8 +30,7 @@ data_dir = 'reports/logs/run_2_5'
 model_dir = 'reports/logs/20220709-162957_pretrain_norm_sgd'
 model_name = 'reports/logs/20220721-203020-pretrain_norm_sgd/model_56_0.pth'
 FIT_ALL_SPLITS = False
-EPOCH = 50
-bs = 32
+
 lr = 1e-3
 
 def finetune_model(log_dir, model_path, split=0):
@@ -129,16 +131,6 @@ def main():
         logging.info(f'Training single model')
         for i in range(SPLIT):
             finetune_model(log_dir, model_path, split=i)
-
-        if epoch % 4 == 0:
-            best_val_loss = val_loss
-            print(f'model')
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'loss': train_loss
-            }, log_dir+f'/model_{epoch}.pth')
-
 
 if __name__ == "__main__":
     main()

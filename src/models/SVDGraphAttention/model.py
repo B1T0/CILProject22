@@ -10,26 +10,40 @@ This is an implementation of our proposed improvement upon SVD++ using a Graph A
 """
 
 
-class SVGGraphAttention(pl.LightningModule):
+class SVDGraphAttention(pl.LightningModule):
 
-    def __init__(self, latent_dim, n_users, n_items, file_path, global_mean,  alpha=0.2,
-                 loss='MSE'
-                 , lr=1e-4,
-                 n_ratings=5, use_internal_embeddings=False, dropout=0.1):
-        super(SVGGraphAttention, self).__init__()
+    def __init__(self, latent_dim, n_users, n_items, file_path, global_mean, alpha=0.2,
+                 loss='MSE', lr=1e-4,
+                 n_ratings=5, dropout=0.1, bias=False):
+        """
+
+        :param latent_dim: size of latent dimension
+        :param n_users: number of users in rating matrix
+        :param n_items: number of items in rating matrix
+        :param file_path: path ratings file
+        :param global_mean: mean rating
+        :param alpha: elu factor for graph attention
+        :param loss: name of Loss function to be used
+        :param lr: learning rate of optimizer
+        :param n_ratings: number of discrete rating categories
+        :param dropout: node dropout percentage
+        :param bias: whether to learn user bias or not
+        """
+        super(SVDGraphAttention, self).__init__()
         self.gm = global_mean
         self.n_users = n_users
         self.n_items = n_items
         self.n = n_users + n_items
         self.n_rating = n_ratings
-        self.use_internal_embeddings = use_internal_embeddings
+        #self.use_internal_embeddings = use_internal_embeddings
         self.lr = lr
         self.dropout = dropout
         self.alpha = alpha
-
         self.latent_dim = latent_dim
         self.in_features = latent_dim
         self.out_features = latent_dim
+
+        self.bias = bias
 
         # Embedding used for Graph Attention
         self.embeddings = torch.nn.Embedding(
@@ -84,7 +98,6 @@ class SVGGraphAttention(pl.LightningModule):
             nn.Linear(self.latent_dim, self.latent_dim),
         )
 
-
         self.loss = loss
         if loss == 'MSE':
             self.loss = nn.MSELoss()
@@ -98,12 +111,14 @@ class SVGGraphAttention(pl.LightningModule):
         self.mse = nn.MSELoss()
 
     def forward(self, idx):
-        # print(idx)
-        # print(self.adjacency_matrix[0][idx].size())
-        # print(torch.nonzero(self.adjacency_matrix[0][idx]))
+        """
+        the models forward method. Return rating prediction given a tuple of form (movie, user)
+        :param idx: tuple (movie_idx, user_idx), movie_idx :(bs, ), user_idx: (bs, )
+        :return: ratings (bs, )
+        """
         movie_idx, user_idx = idx
 
-        #unique ids needed for masking to work
+        # unique ids needed for masking to work
         user_idx_shifted, inverse_index = torch.unique(user_idx, sorted=False, return_inverse=True)
         user_idx_shifted = user_idx_shifted + self.n_items
 
@@ -126,18 +141,17 @@ class SVGGraphAttention(pl.LightningModule):
 
         user_emb_sum = self.accum(output)
         user_emb_sum = self.combine(user_emb_sum)
-        #print(user_emb_sum.size())
-        #user_emb_sum = user_emb_sum[mask]
+        # print(user_emb_sum.size())
+        # user_emb_sum = user_emb_sum[mask]
         user_emb = self.user_embeddings(user_idx)
-        #print(user_emb.size())
+        # print(user_emb.size())
         movie_emb = self.movie_embeddings(movie_idx)
-        #print(movie_emb.size())
+        # print(movie_emb.size())
         b_u = self.user_bias(user_idx)
-        #print(b_u.size())
         b_m = self.movie_bias(movie_idx)
-        #print(b_m.size())
         t = torch.sum((user_emb + user_emb_sum) * movie_emb, dim=1)
-        # t += torch.squeeze(b_u) + torch.squeeze(b_m)
+        if self.bias:
+            t += torch.squeeze(b_u) + torch.squeeze(b_m)
         pred_r_ui = t + self.gm
 
         return pred_r_ui
@@ -147,10 +161,10 @@ class SVGGraphAttention(pl.LightningModule):
 
     def training_step(self, train_batch, batch_idx):
         """
-        basic training step
-        :param train_batch:
-        :param batch_num:
-        :return:
+        basic training step used for lightning
+        :param train_batch: (movie_idx, user_idx, ratings), all of shape (bs, )
+        :param batch_num: -
+        :return: loss
         """
         for i, x in enumerate(train_batch):
             train_batch[i] = x.to('cuda:0')
@@ -163,9 +177,9 @@ class SVGGraphAttention(pl.LightningModule):
     def validation_step(self, train_batch, batch_idx):
         """
         basic validation step
-        :param x:
-        :param batch_num:
-        :return:
+        :param x: (movie_idx, user_idx, ratings), all of shape (bs, )
+        :param batch_num: -
+        :return: loss
         """
         for i, x in enumerate(train_batch):
             if x is not None:

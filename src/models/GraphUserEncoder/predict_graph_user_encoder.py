@@ -2,22 +2,18 @@ import pandas as pd
 from tqdm import tqdm
 import torch
 
-print(torch.cuda.device_count())
-
-# path = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
-# path = '/home/jimmy/CILProject22/data/raw/data_train.csv'
-path = '/home/jimmy/CILProject22/data/raw/train_split_'
-model_dir = '/home/jimmy/CILProject22/reports/logs/20220728-215328_graphautoencoder_16_user_mode'
-graph_paths = '/home/jimmy/CILProject22/data/raw/train_split_'
-EPOCH = 50
-bs = 128
-SPLIT = 5
-
-MODE = 'user_mode'
-EMBEDDING_DIM = 16
 
 
 def predict_graph_user_encoder(log_dir, args, model, dataloader, split=0):
+    """
+     prediction function for Graph User Encoder
+    first creates full rating matrix before subsampling the given submission entries
+    :param log_dir: directory to save file to
+    :param model: model
+    :param args: -
+    :param dataloader: dataloader for submission indices
+    :param split: # for name
+    """
     print(f'Prediction split {split}')
 
     MODE = args['train_mode']

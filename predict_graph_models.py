@@ -1,18 +1,38 @@
+
 import logging
 import os
 import sys
 import time
 
 import pandas as pd
+
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
 from src.models.model_loader import get_model, predict_model, get_model_params
 from utils.logger import Logger
+from config import config
 
-SUBMISSION_PATH = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
+"""
+Prediction file for model prediction over all training splits, 
+uses basic config.py and hyperparameter.py for configuration
+"""
+
+
+SUBMISSION_PATH = 'data/external/sampleSubmission.csv'
+PATH = config['train_path']
+START_SPLIT = config['start_split']
+NUM_SPLITS = config['num_splits']
+model_name = config['model']
+MODEL_DIR = config['predict_dir']
+
 
 def get_submission_dataloader(path):
+    """
+    returns dataloader used for submission prediction
+    :param path:
+    :return:
+    """
     indices_users = []
     indices_movies = []
     df = pd.read_csv(path)
@@ -31,10 +51,13 @@ def get_submission_dataloader(path):
 
 
 def concatenate(concat_dir):
+    """
+    averages all k model predictions into a single prediction
+    """
     print('Begin Concatenation')
     predictions = []
     idx = []
-    for i in range(SPLIT):
+    for i in range(NUM_SPLITS):
         df = pd.read_csv(concat_dir + f'/submission_{i}.csv')
         predictions.append(df['Prediction'].to_numpy())
         idx.append(df['Id'])
@@ -44,7 +67,7 @@ def concatenate(concat_dir):
     print(predictions.size())
     predictions = predictions.squeeze()
     df = pd.DataFrame({'Id': idx[0], 'Prediction': predictions})
-    df.to_csv(concat_dir + '/submission_graphattention_avg.csv', index=False)
+    df.to_csv(concat_dir + f'/submission_{model_name}_avg.csv', index=False)
 
 def prediction(args, file_name, model_name, model_dir, split=None):
     model_params = args['model_params']  # graph models need this
@@ -53,14 +76,14 @@ def prediction(args, file_name, model_name, model_dir, split=None):
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint['model_state_dict'])
     print('Moving model to cuda')
-    dataloader = get_submission_dataloader(submission_path)
+    dataloader = get_submission_dataloader(SUBMISSION_PATH)
     model.eval()
     model = model.to('cuda:0')
 
     predict_model(model_name, model, args, dataloader, split)
 
 def main():
-    model_name = "GraphAttention"
+
     run_id = time.strftime("%Y%m%d-%H%M%S")
     log_dir = f"reports/logs/{run_id}_{model_name}_predictions"
     if not os.path.exists(log_dir):
@@ -73,5 +96,6 @@ def main():
     args = get_model_params(model_name)
 
 
-    for split in range(BEGIN_SPLITS, NUM_SPLITS):
-        predictions(args, file_name, model_name, model_dir, split)
+    for split in range(START_SPLIT, NUM_SPLITS):
+        file_name = PATH + f'{split}.csv'
+        prediction(args, file_name, model_name, MODEL_DIR, split)

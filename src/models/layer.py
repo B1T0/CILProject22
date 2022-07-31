@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+"""
+This file contains common modules used for all graph models
+"""
 
 class GraphConvolution(nn.Module):
     """
@@ -31,6 +34,7 @@ class GraphConvolution(nn.Module):
 class GraphSelfAttentionLayer(nn.Module):
     """
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
+    optimized for forwarding
     """
 
     def __init__(self, in_features, out_features, dropout, alpha, concat=True):

@@ -6,14 +6,28 @@ from src.models.utils import normalize_adj, create_full_adjacency_matrix
 from src.models.layer import GraphConvolution
 
 
-# To Dos
-# -introduce attention in aggregation
-# -add small user embedding not used for aggregation
+"""
+Implementation of graph based collaborative filtering:
+latent factors of users and items are convolved through the existing rating matrix before being
+used for a single rating prediction
+
+we use 5 convolutions overall, one for each rating level
+"""
 
 class GraphAutoencoder(pl.LightningModule):
 
     def __init__(self, latent_dim, n_users, n_items, file_path, loss='MSE', accum='stack', lr=1e-4,
                  n_ratings=5):
+        """
+        :param latent_dim: dimension size of learned embeddings
+        :param n_users: # of users in rating matrix
+        :param n_items: # of items in rating matrix
+        :param file_path: file path to ratings file
+        :param loss: loss to be used
+        :param accum: accumulation function to be used after convolution
+        :param lr: learn rate of optimizer
+        :param n_ratings: # of discrete rating categories
+        """
         super(GraphAutoencoder, self).__init__()
         self.n_users = n_users
         self.n_items = n_items
@@ -82,42 +96,36 @@ class GraphAutoencoder(pl.LightningModule):
         self.mse = nn.MSELoss()
         self.decoder = nn.Bilinear(int(self.out_features), int(self.out_features), int(self.output_size))
 
-    def forward(self, x, items, users, mask=None):
+    def forward(self, x, items, users):
+        """
+
+        :param x: Embeddings
+        :param items: (bs, ) item indices
+        :param users: (bs, ) user indices
+        :param mask:
+        :return:
+        """
         output = []
+
+        #convolution over n-ratings matrices
         weight = [torch.zeros((int(self.in_features), int(self.out_features))).cuda()]
         for i in range(self.n_rating):
-            # print(weight.size())
-            # print(self.weight_matrices[i].size())
             weight.append(self.weight_matrices[i] + weight[-1])
             output.append(self.gcn1[i](x, self.norm_adj[i], weight[-1]))
 
         output = self.accum(output)
-        # output = torch.relu(output.to_dense())
         output = torch.relu(output)
-        # print(output.size())
         item_embeddings, user_embeddings = torch.split(output, [1000, 10000])
         # alternative implementation
 
         item_embeddings = self.dense(item_embeddings)
         user_embeddings = self.dense(user_embeddings)
-        # print(item_embeddings.size())
-        # print(user_embeddings.size())
 
-        # item_mask, user_mask = torch.split(mask, [1000, 10000])
         item_embeddings = item_embeddings[items]
-        # print(item_embeddings.size())
         user_embeddings = user_embeddings[users]
         # print(user_embeddings.size())
         output = self.decoder(user_embeddings, item_embeddings)
-        # output = item_embeddings.matmul(self.decoder.weight).matmul(user_embeddings.transpose(0, 1))
-        # #outut 5 * 1000 * 10000
-        # output += self.decoder.bias.unsqueeze(1).unsqueeze(1).repeat(1, 1000, 10000)
-        # output = output.permute(1, 2, 0)
-        # 1000 * 10000
-        # print(output.size())
-        # print(f'Predicted Matrix {output.size()}')
         output = self.activation(output)
-        # print(output.size())
         return output
 
     def configure_optimizers(self):

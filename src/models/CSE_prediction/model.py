@@ -3,6 +3,11 @@ import torch.optim
 import torch.nn as nn
 
 
+"""
+finetuning model build on top of pretrained embedding model
+not used in final report
+"""
+
 class Prediction(pl.LightningModule):
     def __init__(self, model,freeze = False, lr=1e-3):
         super(Prediction, self).__init__()

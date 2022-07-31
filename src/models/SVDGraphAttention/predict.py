@@ -1,6 +1,9 @@
 import torch
 from tqdm import tqdm
 
+"""
+file contains the prediction call 
+"""
 
 def predict_svd_graph_attention(log_dir, model, args, dataloader, split=0):
 

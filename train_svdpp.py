@@ -5,20 +5,23 @@ from src.models.SVD_pp.model import SVDPP
 import os
 import time
 from src.data.SVDPP.graph_datamodule import SVDPPDataset, collate_fn
-from src.data.Eval.dataset import get_eval_dataset
 from src.utils.logger import Logger
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 import logging
 import sys
+
+"""
+train file for SVD++ implemented in pytorch
+not integrated with graph model predictions
+"""
 
 print(torch.cuda.device_count())
 
 print("Using testing config")
-path = '/home/jimmy/CILProject22/data/raw/cv10/train_split_'
-val_path = '/home/jimmy/CILProject22/data/raw/cv10/test_split_'
-FULL_DATASET = '/home/jimmy/CILProject22/data/raw/data_train.csv'
-#FULL_DATASET = '/home/jimmy/CILProject22/data/raw/cv10/test_split_0.csv'
-EVAL_PATH = '/home/jimmy/CILProject22/data/external/sampleSubmission.csv'
+path = 'data/raw/cv10/train_split_'
+val_path = 'data/raw/cv10/test_split_'
+FULL_DATASET = 'data/raw/data_train.csv'
+EVAL_PATH = '/data/external/sampleSubmission.csv'
 
 NUM_SPLITS = 10
 

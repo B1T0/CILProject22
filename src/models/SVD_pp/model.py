@@ -3,7 +3,12 @@ import torch.nn as nn
 import pytorch_lightning as pl
 import torch.nn.functional as F
 
+"""
+Simple implementation of SVD++ for pytorch
 
+uses prediction rule r_{ui} = \mu + b_i + b_u + q_i * (p_u + |N_u|^{-1/2} \sum_{j \in N_u} y_j)
+and optimises for squared error
+"""
 
 
 class SVDPP(pl.LightningModule):
@@ -26,7 +31,6 @@ class SVDPP(pl.LightningModule):
         # user and item indices start with 1 in dataset,embedding index starts with 1
         user_id, item_id = x[0], x[1]
         rated_items, rated_counts = x[2], x[3]
-
 
         p_u = self.P(user_id)
         q_i = self.Q(item_id)

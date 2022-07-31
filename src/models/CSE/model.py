@@ -5,6 +5,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+"""
+model used for contrastive pretraining of collaborative similarity
+not used for final report
+"""
+
 class Model(pl.LightningModule):
     def __init__(self, embedding_dim=100):
         super(Model, self).__init__()

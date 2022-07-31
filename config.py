@@ -8,23 +8,18 @@ config = dict()
 """
 Training or inference mode
 """
-config['mode'] = 'train'  # 'train' or 'eval'
+config['train_path'] = 'data/raw/train_split_'  # 'train' or 'eval'
+config['val_path'] = 'data/raw/test_split_'
 
-"""
-Data related settings 
-"""
-config['dataset'] = 'contrastive'  # options: sleep-edf-153, ...
-# load input size from json file of the dataset 
-# with open(f"data/processed/{config['dataset']}/info.json") as f:
-#     data = json.load(f)
-#     config['input_width'] =  data['input_width']
-#     config['input_height'] = data['input_height']
+config['start_split'] = 0
+config['num_splits'] = 5
+config['dataset'] = 'data/raw/data_train.csv'
 
+config['predict_dir'] = 'reports/logs/20220731-212306_graph_auto_encoder_32'
 """
 Model related settings 
-Available models: Acceptor
 """
-config['model'] = 'Contrastive_Pretraining'
+config['model'] = 'GraphAttention'
 
 """
 Training related settings

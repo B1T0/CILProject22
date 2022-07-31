@@ -1,18 +1,11 @@
-import logging
-import sys
 
-import pandas as pd
-import numpy as np
-import torch
 from tqdm import tqdm
 import torch
 from src.models.CSE.model import Model
 import os
 import time
-from src.data.Contrastive.graph_datamodule import Triplet_Dataset
-from src.utils.logger import Logger, log_params, WandbImageLogger
+from src.data.Contrastive.graph_datamodule import Graph_Dataset
 from torch.utils.data import DataLoader
-<<<<<<< HEAD
 
 from src.utils.logger import Logger
 
@@ -103,18 +96,18 @@ def train_model(log_dir, dataloader, val_dataloader = None, split = None):
         elif train_loss/len(dataloader) < best_score:
             best_score = train_loss/len(dataloader)
             print('New best model')
-                print(f'Val Loss: {val_loss / len(val_dataloader)}')
-                if best_val_loss is None:
-                    best_val_loss = val_loss
-                elif val_loss < best_val_loss:
-                    early_stopping = 0
-                    best_val_loss = val_loss
-                    logging.info(f'New best model in epoch {epoch} {best_val_loss}')
-                    torch.save({
-                        'epoch': epoch,
-                        'model_state_dict': model.state_dict(),
-                        'loss': train_loss
-                    }, log_dir + f'/model_best_{split}.pth')
+            print(f'Val Loss: {val_loss / len(val_dataloader)}')
+            if best_val_loss is None:
+                best_val_loss = val_loss
+            elif val_loss < best_val_loss:
+                early_stopping = 0
+                best_val_loss = val_loss
+                logging.info(f'New best model in epoch {epoch} {best_val_loss}')
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'loss': train_loss
+                }, log_dir + f'/model_best_{split}.pth')
         scheduler.step()
         if epoch % 4 == 0:
 
@@ -149,13 +142,13 @@ def main():
     print('Beginning Training')
     if train_on_splits:
         for split in range(NUM_SPLITS):
-            dataset = Triplet_Dataset(file_path=path + f'{split}.csv', n_items=1000, n_users=10000, k=K)
+            dataset = Graph_Dataset(file_path=path + f'{split}.csv', n_items=1000, n_users=10000, k=K)
             dataloader = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=5)
-            val_dataset = Triplet_Dataset(file_path=val_path + f'{split}.csv', n_items=1000, n_users=10000, k=K)
+            val_dataset = Graph_Dataset(file_path=val_path + f'{split}.csv', n_items=1000, n_users=10000, k=K)
             val_dataloader = DataLoader(val_dataset, batch_size=bs, num_workers=5)
             train_model(log_dir, dataloader, val_dataloader, split)
     else:
-        dataset = Triplet_Dataset(file_path=f'data/raw/data_train.csv', n_items=1000, n_users=10000, k=K)
+        dataset =   Graph_Dataset(file_path=f'data/raw/data_train.csv', n_items=1000, n_users=10000, k=K)
         dataloader = DataLoader(dataset, batch_size=bs, shuffle=True, num_workers=5)
         train_model(log_dir, dataloader)
 

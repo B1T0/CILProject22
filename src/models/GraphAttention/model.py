@@ -5,17 +5,38 @@ from src.models.layer import ScaledSigmoid, GraphSelfAttentionLayer
 from src.models.utils import create_full_adjacency_matrix
 
 
+"""
+Graph User Encoder Implementation with additional Attention used during the convolution
+
+forward function has been optimised to make large rating matrix usable for batched convolution
+"""
+
 class GraphAttention(pl.LightningModule):
 
     def __init__(self, latent_dim, n_users, n_items, file_path, graph_hidden=32, hidden=32, alpha=0.2, loss='MSE',
                  accum='stack', mode='user_mode', lr=1e-4,
-                 n_ratings=5, use_internal_embeddings=False, dropout=0.1):
+                 n_ratings=5, dropout=0.1):
+        """
+
+        :param latent_dim: # of dimensions of learned embeddings
+        :param n_users: # of users
+        :param n_items: # of items
+        :param file_path: file path to rating matrix
+        :param graph_hidden: # number of dimensions used for attention operation
+        :param hidden: # of dimensions used for linear decoder
+        :param alpha: elu-factor for attention layer
+        :param loss: name of loss to be used
+        :param accum: accumulation operation to be used
+        :param mode: whether to encode user or item-wise
+        :param lr: learn rate of optimiser
+        :param n_ratings: # of discrete rating categories
+        :param dropout: node dropout
+        """
         super(GraphAttention, self).__init__()
         self.n_users = n_users
         self.n_items = n_items
         self.n = n_users + n_items
         self.n_rating = n_ratings
-        self.use_internal_embeddings = use_internal_embeddings
         self.lr = lr
         self.dropout = dropout
         self.mode = mode
@@ -35,14 +56,8 @@ class GraphAttention(pl.LightningModule):
         self.embeddings = torch.nn.Embedding(
             num_embeddings=self.n, embedding_dim=self.latent_dim
         )
-        # self.user_embeddings = torch.nn.Embedding(
-        #     num_embeddings=self.n_users, embedding_dim=self.latent_dim
-        # )
-        #
-        # self.movie_embeddings = torch.nn.Embedding(
-        #     num_embeddings=self.n_items, embedding_dim=self.latent_dim
-        # )
 
+        #Adjacency matrices used for forwarding
         self.adjacency_matrix = create_full_adjacency_matrix(file_path, n_ratings, n_users, n_items,
                                                              identity=True, dense=True)
 
@@ -75,6 +90,7 @@ class GraphAttention(pl.LightningModule):
 
         self.hidden = hidden
 
+        #final decoder to user/item row
         self.user_dense = nn.Sequential(
             nn.Linear(int(self.intermediate), self.hidden),
             nn.Linear(self.hidden, self.hidden),
@@ -123,17 +139,10 @@ class GraphAttention(pl.LightningModule):
         self.movie_embeddings.requires_grad_(True)
 
     def forward(self, idx):
-        # print(idx)
-        # print(self.adjacency_matrix[0][idx].size())
-        #print(torch.nonzero(self.adjacency_matrix[0][idx]))
-
-        #print(idx)
-
-        # print(mask)
-        #subsampled_adjacency = self.adjacency_matrix[0][rows][:, rows]
-        #print(subsampled_adjacency)
-        #print(subsampled_adjacency.size())
-        # print(self.embeddings(rows).size())
+        """
+        :param idx: single idx of either user or item, depending on mode
+        :return: row of rating predictions
+        """
         output = []
         weight = [torch.zeros((int(self.in_features), int(self.out_features)), device=self.device)]
         for i in range(self.n_rating):
@@ -160,7 +169,6 @@ class GraphAttention(pl.LightningModule):
             output = torch.relu(output)
             output = self.user_dense(output)
         else:
-            #output = output[mask]
             output = torch.relu(output)
             output = self.movie_dense(output)
         return output
