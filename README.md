@@ -38,7 +38,12 @@ We train the model on the full dataset and build an ensemble with 5 different in
 
 ### Mixture-of-Tastes
 
+
 ### Bias SGD
+In this approach we model the significant importance of user- and item-specific ramifications. In order to model these biases, each user u and item i is associated with bias terms. Hyperparameters can be found in the [bias_sgd.py file](https://github.com/B1T0/CILProject22/blob/main/Bias%20SGD/bias_sgd.py). To start training and create submission files, run: 
+```
+python bias_sgd.py
+```
 
 
 ### Neural Collaborative Filtering (NCF)
@@ -46,9 +51,17 @@ By running the script run.py the model will be built as specified in model.py, a
 
 
 ### Autoencoder 
-
+In the Autoencoder [directory](https://github.com/B1T0/CILProject22/tree/main/Autoencoder) you can find the implementation of a fully-connected Autoencoder architecture to both encode and decode both user- and item vectors. To run the training procedure and create the submission files, run 
+```
+python autoencoder.py
+```
+The hyperparameters can be set in the autoencoders.py file.s
 
 ### Dual Embedding 
+In the Dual Embedding model, we extend to Neural Collaborative Filtering approach with pretrained user- and item embeddings. In contrast to NCF, we do not learn a look-up table with embeddings, but learn these embeddings in a previous step with distinct learning objective. In the Dual Embedding [directory](https://github.com/B1T0/CILProject22/tree/main/Dual%20Embedding). Hyperparameter configurations can be found in the dual_embedding.py file. Note that you have to specify paths to two pretrained user- and item encoders, respectively. After specifying the paths, to start training and create submission files, run:
+```
+python dual_embedding.py
+```
 
 
 
