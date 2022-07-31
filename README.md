@@ -47,7 +47,7 @@ python bias_sgd.py
 
 
 ### Neural Collaborative Filtering (NCF)
-By running the script run.py the model will be built as specified in model.py, and trained on the 5-fold split. In the prediction phase it saves 5 predictions.csv files in the [data-folder](https://github.com/B1T0/CILProject22/tree/main/data), one for each trained model. Afterwards the predictions will be averaged into one ensemble prediciton. The hyperparameters are the ones we used in our final predictions and are the one we found by doing hyperparameter tuning.
+By running the script [run.py](https://github.com/B1T0/CILProject22/blob/main/NFC/run.py) the model will be built as specified in model.py, and trained on the 5-fold split. In the prediction phase it saves 5 predictions.csv files in the [data-folder](https://github.com/B1T0/CILProject22/tree/main/data), one for each trained model. Afterwards the predictions will be averaged into one ensemble prediciton. The hyperparameters are the ones we used in our final predictions and are the one we found by doing hyperparameter tuning.
 
 
 ### Autoencoder 
