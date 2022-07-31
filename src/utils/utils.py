@@ -1,4 +1,5 @@
 from pathlib import Path
+from src.utils.losses import MaskedMSELoss
 import numpy as np 
 import pandas as pd 
 import torch 
@@ -15,7 +16,6 @@ def get_activation_function(activation_function_name):
         return torch.nn.Linear()
     else:
         raise ValueError("Unknown activation function")
-
 
 def get_data_path():
     return Path(__file__).parent.parent.parent / 'data'
@@ -37,8 +37,8 @@ def clip_data(data, clip_high=5, clip_low=1):
 
 def write_submission(data, submission_file_path, save_path, save_rounded=False):
     # clip data first 
-    data = clip_data(data)
-    
+    data = clip_data(data) 
+    #print(f"data shape {data.shape}")
     # write submission
     data_pd = pd.read_csv(submission_file_path) 
     test_users, test_movies = [np.squeeze(arr) for arr in np.split(data_pd.Id.str.extract('r(\d+)_c(\d+)').values.astype(int) - 1, 2, axis=-1)]
@@ -55,27 +55,35 @@ def write_submission(data, submission_file_path, save_path, save_rounded=False):
         with open(save_path.replace('.csv', '_rounded.csv'), 'w') as f: 
             f.write('Id,Prediction\n')
             for (user, movie) in zip(test_users, test_movies): 
-                f.write("r{}_c{},{}\n".format(user+1, movie+1, np.round(data[user, movie])))
+                f.write("r{}_c{},{}\n".format(user+1, movie+1, data[user, movie]))
 
-def inference_for_submission(model, data, scaler, save_path, save_rounded, submission_file_path='/home/ubuntu/projects/CILProject22/data/submission/sampleSubmission.csv', remove_bias=True):
+def inference_for_submission(model, data_module, save_path, save_rounded, submission_file_path='/home/ubuntu/projects/CILProject22/data/submission/sampleSubmission.csv', remove_bias=True):
     # set the nans to 0 for inference as in training 
-    data = torch.Tensor(data)
+
+    data = torch.Tensor(data_module.inference_tensor)
     data = torch.nan_to_num(data, nan=0).cuda()
     model.eval().cuda()
     with torch.no_grad():
-        predictions = model(data)
-    predictions = predictions.cpu().numpy()
-    # undo the scaling
-    predictions = scaler.inverse_transform(predictions)
+        predictions = model(data).cpu().numpy()
+    model.train()
+
+    # transpose data and predictions if necessary
+    if data_module.item_based:
+        data = data.cpu().numpy().T
+        predictions = predictions.T
+
     write_submission(predictions, submission_file_path, save_path, save_rounded)
+
     if remove_bias:
+        print(f"Computing user-based bias")
         data = torch.squeeze(data)
-        data = scaler.inverse_transform(data.cpu().numpy())
-        predictions = remove_user_bias(predictions, data, correction='l1')
+        predictions = remove_user_bias(predictions, data, correction='mse')
+
         write_submission(predictions, submission_file_path, save_path.replace('.csv', '_bias_removed.csv'), save_rounded)
+
     return predictions
 
-def remove_user_bias(predictions, data, correction='l1'):
+def remove_user_bias(predictions, correction='mse'):
     """
     Minimize per user over the known (non-nan) entries and obtain a constant bias per user 
     """
@@ -103,3 +111,15 @@ def remove_user_bias(predictions, data, correction='l1'):
         return predictions + user_bias_mse.unsqueeze(1).cuda()
     else:
         raise ValueError("Unknown correction method")
+
+def eval_submission(predictions, data_module):
+    # create tensors if necessary
+    if not isinstance(predictions, torch.Tensor):
+        predictions = torch.Tensor(predictions)
+    if not isinstance(data, torch.Tensor):
+        data = torch.Tensor(data)
+
+    loss = MaskedMSELoss()
+    loss_value = loss(predictions, data_module.inference_tensor, data_module.validation_mask).item()
+    return loss_value
+    

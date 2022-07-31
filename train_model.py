@@ -24,26 +24,19 @@ import json
 
 def _prepare_batch(batch):
         """Prepare batch."""
-        x = batch[0]
+        x, mask = batch[0], batch[1]
         # print(f"x shape {x.shape}")
         x = x.cuda()
-        # compute the non-nan mask 
-        nan_mask = torch.isnan(x).cuda()
-        # makenans in x to 0 
-        x[nan_mask] = 0
-        # return x.view(x.size(0), -1)
-        return x, nan_mask
+        mask = mask.cuda()
+        return x, mask
 
 def train_epoch(training_loader, optimizer, model, loss_fn):
     running_loss = 0.
-    last_loss = 0.
 
-    # Here, we use enumerate(training_loader) instead of
-    # iter(training_loader) so that we can track the batch
-    # index and do some intra-epoch reporting
     for i, data in enumerate(training_loader):
         # Every data instance is an input + label pair
-        inputs, mask = _prepare_batch(data[0])
+        inputs, mask = _prepare_batch(data)
+
 
         # Zero your gradients for every batch!
         optimizer.zero_grad()
@@ -52,7 +45,7 @@ def train_epoch(training_loader, optimizer, model, loss_fn):
         outputs = model(inputs)
 
         # Compute the loss and its gradients
-        loss = loss_fn(outputs, inputs, ~mask)
+        loss = loss_fn(outputs, inputs, mask)
         loss.backward()
 
         # Adjust learning weights
@@ -70,22 +63,15 @@ def test_epoch(test_dataloader, model, loss_fn):
 
     running_loss = 0.
 
-    # Here, we use enumerate(training_loader) instead of
-    # iter(training_loader) so that we can track the batch
-    # index and do some intra-epoch reporting
     for i, data in enumerate(test_dataloader):
         # Every data instance is an input + label pair
-        inputs, mask = _prepare_batch(data[0])
+        inputs, mask = _prepare_batch(data)
 
         # Make predictions for this batch
         outputs = model(inputs)
 
         # Compute the loss and its gradients
-        loss = loss_fn(outputs, inputs, ~mask)
-
-        # check if loss is nan 
-        if torch.isnan(loss).any():
-            print(f"nan in loss")
+        loss = loss_fn(outputs, inputs, torch.ones_like(mask).cuda())
 
         # Gather data and report
         running_loss += loss.item()
@@ -96,7 +82,7 @@ def test_epoch(test_dataloader, model, loss_fn):
     return avg_loss
 
 
-def train_model(model, optimizer, loss_fn, train_dataloader, val_dataloader, epochs, run_id, log_dir, patience=15):
+def train_model(model, optimizer, loss_fn, train_dataloader, val_dataloader, epochs, log_dir, patience=15):
     # Train model
     model = model.cuda()
     min_val_loss = float('inf')
@@ -120,7 +106,6 @@ def train_model(model, optimizer, loss_fn, train_dataloader, val_dataloader, epo
                 print("Early stopping in epoch {}".format(epoch_index))
                 break
         print(f"Finished epoch {epoch_index}")
-    print(f"Finished training")
     
     # return best model 
     model.load_state_dict(torch.load(f"{log_dir}/best_model.pt"))
@@ -130,7 +115,7 @@ def train_model(model, optimizer, loss_fn, train_dataloader, val_dataloader, epo
 
 def main():
     predictions = None # predictions for submission
-    run_id = time.strftime("%Y%m%d-%H%M%S")
+    run_id = time.strftime("%Y%m%d-%H%M%S") + f"_{config['model']}"
 
     for i in range(5): # iterate over the splits 
         print(f"Starting split {i}")
@@ -141,12 +126,22 @@ def main():
             os.makedirs(log_dir)
         sys.stdout = Logger(print_fp=os.path.join(log_dir, 'out.txt'))
         # Create logging file
-        logging.basicConfig(filename=f"{log_dir}/info.log", encoding='utf-8', level=logging.INFO)
+        logging.basicConfig(filename=f"{log_dir}/info.log", level=logging.INFO)
         logging.info("Started logging.")
 
         # Obtain datamodule based on config settings for dataset
-        train_loader, val_loader, inference_tensor, inference_scaler = get_user_dataloaders(params[config['model']]['file_path'], i, params[config['model']]['batch_size'])
-        model = AutoEncoder()
+        train_loader, val_loader, inference_tensor, inference_scaler = get_user_dataloaders(
+            params[config['model']]['file_path'], 
+            i, 
+            params[config['model']]['batch_size'], 
+            item_based=params[config['model']]['item_based']
+            )
+
+        model = AutoEncoder(
+            input_width=params[config['model']]['input_width'],
+            hidden_dims=params[config['model']]['hidden_dims'],
+            activation=params[config['model']]['activation'],
+        )
 
         # Log hyperparameters and config file as json 
         with open(f"reports/logs/{run_id}/config.json", "w") as f:
@@ -156,16 +151,36 @@ def main():
 
 
         # Create optimizer 
-        optimizer = torch.optim.Adam(model.parameters(), lr=params[config['model']]['lr'], weight_decay=params[config['model']]['weight_decay'])
+        optimizer = torch.optim.AdamW(
+            model.parameters(), 
+            lr=params[config['model']]['lr'], 
+            weight_decay=params[config['model']]['weight_decay']
+            )
+            
         loss_fn = MaskedMSELoss()
 
         # Train model 
-        model = train_model(model, optimizer, loss_fn, train_loader, val_loader, epochs=params[config['model']]['epochs'], run_id=run_id, log_dir=log_dir)
+        model = train_model(
+            model, 
+            optimizer, 
+            loss_fn, 
+            train_loader, 
+            val_loader, 
+            epochs=params[config['model']]['epochs'], 
+            log_dir=log_dir
+            )
 
         # Inference 
-        split_predictions = inference_for_submission(model, data=inference_tensor, scaler=inference_scaler, save_path=f"{log_dir}/submission.csv", save_rounded=True)
+        split_predictions = inference_for_submission(
+            model, 
+            data=inference_tensor, 
+            scaler=inference_scaler, 
+            save_path=f"{log_dir}/submission.csv", 
+            save_rounded=False, 
+            item_based=params[config['model']]['item_based']
+            )
+        print(f"split predictions shape {split_predictions.shape}")
 
-        print(f"split predictions ")
         if predictions is None:
             predictions = split_predictions
         else:
@@ -179,7 +194,8 @@ def main():
     write_submission(
         predictions / 5, 
         '/home/ubuntu/projects/CILProject22/data/submission/sampleSubmission.csv', 
-        f"reports/logs/{run_id}/submission.csv"
+        f"reports/logs/{run_id}/submission.csv",
+        item_based=params[config['model']]['item_based']
         )
 
 

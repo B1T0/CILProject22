@@ -23,7 +23,8 @@ def get_datamodule(split_number):
         return User_DataModule(
             split_number, 
             params[config['model']]['file_path'],
-            batch_size=params[config['model']]['batch_size']
+            batch_size=params[config['model']]['batch_size'],
+            item_based=params[config['model']]['item_based']
         )
     elif config['dataset'] == 'cross':
         return Cross_DataModule(

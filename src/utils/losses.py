@@ -1,16 +1,13 @@
 import torch 
+from torch.autograd import Variable
+from torch import nn 
 
-
-class MaskedMSELoss(torch.nn.Module):
-    """
-    Implements a masked MSE loss function where we compute the loss
-    only over non-nan/existing entries (marked by mask)
-    """
-    def __init__(self):
-        super(MaskedMSELoss, self).__init__()
-
-    def forward(self, input, target, mask):
-        if torch.sum(mask) == 0: 
-            return torch.tensor(0.)
-        else:
-            return torch.sum(((input - target) * mask) ** 2.0)  / torch.sum(mask)
+def MaskedMSELoss(inputs, targets, mask=None):
+  if mask == None:
+    mask = targets != 0
+  num_ratings = torch.sum(mask.float())
+  criterion = nn.MSELoss(reduction='sum')
+  mse = criterion(inputs * mask.float(), targets * mask.float())
+  # print(f"inputs {inputs[:5]}, \ntargets {targets[:5]}, \nmask {mask[:5]}")
+  # print(f"mse {mse}, num_ratings {num_ratings}")
+  return mse, num_ratings

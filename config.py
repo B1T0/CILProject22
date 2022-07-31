@@ -24,7 +24,7 @@ config['dataset'] = 'user' # 'contrastive'
 Model related settings 
 Available models: Acceptor
 """
-config['model'] = 'AutoEncoder' # 'Contrastive_Pretraining'
+config['model'] = 'UserAutoEncoder' # 'Contrastive_Pretraining'
 
 """
 Training related settings
