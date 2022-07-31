@@ -8,11 +8,16 @@ from torch import dropout, nn
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torchvision.transforms import ToTensor
 from torch.nn.functional import softmax
+import copy
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(torch.cuda.is_available())
 
 # Load the data
-df_full = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/data_train.csv')
-df_train = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/cross_validation/train_split_4.csv')
-df_test = pd.read_csv('/home/dustin/Documents/Study/Master2/CILProject22/data_raw/cross_validation/test_split_4.csv')
+split_number = 4
+df_full = pd.read_csv('/home/ubuntu/CILProject22/data/raw/data_train.csv')
+df_train = pd.read_csv(f'/home/ubuntu/CILProject22/data/raw/cross_validation/train_split_{split_number}.csv')
+df_test = pd.read_csv(f'/home/ubuntu/CILProject22/data/raw/cross_validation/test_split_{split_number}.csv')
 
 print('Loading the data...')
 dic_full = {
@@ -33,12 +38,16 @@ n_users = 10000
 n_items = 1000
 
 print(np.asarray(dic_train['X']).shape, np.asarray(dic_train['y']).shape)
+x_train = torch.Tensor(dic_train['X'])
+print(x_train.is_cuda)
+x_train.cuda()
+print(x_train.is_cuda)
 
-train_dataset = TensorDataset(torch.Tensor(dic_train['X']), torch.Tensor(dic_train['y']))
-test_dataset = TensorDataset(torch.Tensor(dic_test['X']), torch.Tensor(dic_test['y']))
+train_dataset = TensorDataset(torch.Tensor(dic_train['X']).cuda(), torch.Tensor(dic_train['y']).cuda())
+test_dataset = TensorDataset(torch.Tensor(dic_test['X']).cuda(), torch.Tensor(dic_test['y']).cuda())
 
-train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=5)
-test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers=5)
+train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=True)
 
 
 # Define the model
@@ -107,7 +116,7 @@ def train(model, train_dataloader, test_dataloader, epochs=10, lr=0.001, weight_
             loss.backward()
             optimizer.step()
             # Update metrics
-            rmse_loss = rmse(softmax(output), rating.long()).detach().numpy()
+            rmse_loss = rmse(softmax(output, dim=1), rating.long()).cpu().detach().numpy()
             metrics['train_ce'].append(loss.item())
             metrics['train_rmse'].append(rmse_loss)
             metrics['train_rmse_epoch'].append(rmse_loss)
@@ -126,7 +135,7 @@ def train(model, train_dataloader, test_dataloader, epochs=10, lr=0.001, weight_
                 # Compute loss
                 loss = loss_fn(output, rating.long()-1)
                 # Update metrics
-                rmse_loss = rmse(softmax(output), rating.long()).detach().numpy()
+                rmse_loss = rmse(softmax(output, dim=1), rating.long()).cpu().detach().numpy()
                 metrics['test_ce'].append(loss.item())
                 metrics['test_rmse'].append(rmse_loss)
                 metrics['test_rmse_epoch'].append(rmse_loss)
@@ -136,21 +145,23 @@ def train(model, train_dataloader, test_dataloader, epochs=10, lr=0.001, weight_
                     print('\t\tRMSE: {}'.format(np.mean(metrics['test_rmse_epoch'])))
                     metrics['test_rmse_epoch'] = []
         # Print metrics
-        print('Epoch: {}, Train CE: {:.4f}, Test CE: {:.4f}, Train_RSME: {:.4f}, Test_RMSE: {:.4f}'.format(epoch, np.mean(metrics['train_ce']), np.mean(metrics['test_ce']), np.mean(metrics['train_rmse']), np.mean(metrics['test_rmse'])))
+        print('Epoch: {}, Train CE: {:.4f}, Test CE: {:.4f}, Train_RSME: {:.4f}, Test_RMSE: {:.4f}'.format(epoch+1, np.mean(metrics['train_ce']), np.mean(metrics['test_ce']), np.mean(metrics['train_rmse']), np.mean(metrics['test_rmse'])))
         # Keep track of the best model and do
         if best_val_rsme > np.mean(metrics['test_rmse']):
             best_val_rsme = np.mean(metrics['test_rmse'])
             best_epoch = epoch
-            print('Best epoch: {}, Best RMSE: {:.4f}'.format(best_epoch, best_val_rsme))
+            best_model = copy.deepcopy(model)
+            print('Best epoch: {}, Best RMSE: {:.4f}'.format(best_epoch+1, best_val_rsme))
             torch.save(model.state_dict(), './best_model.pth')
         if best_epoch <= epoch - patience:
             print('Early stopping')
-            break
-    return metrics
+            print('Best epoch: {}, Best RMSE: {:.4f}'.format(best_epoch+1, best_val_rsme))
+            return best_model, metrics
+    return model, metrics
 
 def rmse(preds, true):
     # one hot to index
-    pred_scalar = torch.zeros(preds.shape[0])
+    pred_scalar = torch.zeros(preds.shape[0]).cuda()
     for i, pred in enumerate(preds):
         for j, p in enumerate(pred):
             pred_scalar[i] += p * (j+1)
@@ -165,7 +176,8 @@ def predict(model, user_id, item_id):
 
 print('Training the model...')
 model = NCF()
-metrics = train(model, train_dataloader, test_dataloader, epochs=10, lr=0.001, weight_decay=0.0001)
+model.cuda()
+model, metrics = train(model, train_dataloader, test_dataloader, epochs=10, lr=0.001, weight_decay=0.0001)
 print('Training complete.')
 
 # Save the model
@@ -178,18 +190,19 @@ torch.save(model.state_dict(), './model_afterTraining.pt')
 # Predict
 print('Predicting...')
 
-sample_sub = pd.read_csv("/home/dustin/Documents/Study/Master2/CILProject22/data_raw/sampleSubmission.csv")
+sample_sub = pd.read_csv("/home/ubuntu/CILProject22/data/raw/sampleSubmission.csv")
 
-to_predict = torch.Tensor([(int(str(x).partition("_")[0][1:]),int(str(x).partition("_")[2][1:])) for x in sample_sub['Id']])
+to_predict = torch.Tensor([(int(str(x).partition("_")[0][1:]),int(str(x).partition("_")[2][1:])) for x in sample_sub['Id']]).cuda()
 user_id, item_id = torch.transpose(to_predict, 0, 1)[0].long(), torch.transpose(to_predict, 0, 1)[1].long()
 output = model(user_id, item_id)
 
-output_scalars = torch.zeros(output.shape[0])
-for i, pred in enumerate(output):
+output_scalars = torch.zeros(output.shape[0]).cuda()
+for i, pred in enumerate(softmax(output, dim=1)):
     for j, p in enumerate(pred):
         output_scalars[i] += p * (j+1)
+    # if pred[4] > 0.8:
+    #     output_scalars[i] = 5
 
-output_scalars = output_scalars.detach().numpy()
-sample_sub.Prediction = output_scalars
-sample_sub.to_csv("/home/dustin/Documents/Study/Master2/CILProject22/data/NCF.csv", index=False)
+sample_sub.Prediction[:100] = output_scalars.cpu().detach().numpy()
+sample_sub.to_csv(f"/home/ubuntu/CILProject22/data/NCF_{split_number}.csv", index=False)
 print('Done!')
