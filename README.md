@@ -71,7 +71,6 @@ python dual_embedding.py
 ```
 
 
-
 ### Graph-Encoder
 Change model name in config.py to 'GraphAutoencoder' and
 in the main folder, run
@@ -105,6 +104,10 @@ in the main folder, run
 python train_graph_models.py
 ```
 Hyperparameters can be set in the `hyperparameter.py` file in the `src/models`
+
+
+### Blending
+To compute the blending, copy the per-split predictions for the test splits as `split{i}.csv` and for the kaggle submission as `sub{i}.csv` as well as the final model prediction file as `submission.csv` into a folder `data/predictions/{model}` for each model replacing the values in curly brackets accordingly. After that check the paths in `Blending/blending-avg.py` and run it.
 
 
 # 3. Results
