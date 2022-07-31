@@ -1,9 +1,8 @@
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import pandas as pd
-from src.models.GraphAutoencoder.layer import ScaledSigmoid, GraphSelfAttentionLayer
-from src.models.GraphAutoencoder.utils import create_full_adjacency_matrix
+from src.models.layer import ScaledSigmoid, GraphSelfAttentionLayer
+from src.models.utils import create_full_adjacency_matrix
 
 
 class GraphAttention(pl.LightningModule):
@@ -127,17 +126,11 @@ class GraphAttention(pl.LightningModule):
         # print(idx)
         # print(self.adjacency_matrix[0][idx].size())
         #print(torch.nonzero(self.adjacency_matrix[0][idx]))
-        rows = torch.nonzero(self.adjacency_matrix[0][idx])[:, 1]
+
         #print(idx)
-        mask = []
-        for _, i in enumerate(idx):
-            #print(i.size())
-            #print(rows.size())
-            #also works because of bi partiteness
-            mask.append(torch.nonzero((rows == i), as_tuple = True)[0])
-        mask = torch.concat(mask)
+
         # print(mask)
-        subsampled_adjacency = self.adjacency_matrix[0][rows][:, rows]
+        #subsampled_adjacency = self.adjacency_matrix[0][rows][:, rows]
         #print(subsampled_adjacency)
         #print(subsampled_adjacency.size())
         # print(self.embeddings(rows).size())
@@ -146,23 +139,41 @@ class GraphAttention(pl.LightningModule):
         for i in range(self.n_rating):
             # print(weight.size())
             # print(self.weight_matrices[i].size())
+            rows = torch.nonzero(self.adjacency_matrix[i][idx])[:, 1]
             weight.append(self.weight_matrices[i] + weight[-1])
-            output.append(self.gcn1[i](self.embeddings(rows), self.adjacency_matrix[i][rows][:, rows], weight[-1]))
+
+            mask = []
+            for _, j in enumerate(idx):
+                # print(i.size())
+                # print(rows.size())
+                # also works because of bi partiteness
+                mask.append(torch.nonzero((rows == j), as_tuple=True)[0])
+            mask = torch.concat(mask)
+
+            convoluted = self.gcn1[i](self.embeddings(rows), self.adjacency_matrix[i][rows][:, rows], weight[-1])
+            output.append(convoluted[mask])
 
         output = self.accum(output)
         #print(output.size())
         if self.user_mode:
-            output = output[mask]
+            #output = output[mask]
             output = torch.relu(output)
             output = self.user_dense(output)
         else:
-            output = output[mask]
+            #output = output[mask]
             output = torch.relu(output)
             output = self.movie_dense(output)
         return output
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.lr)
+
+        return torch.optim.AdamW([
+            {'params': self.embeddings.parameters(), 'weight_decay': 0.002, 'lr': 5e-5},
+            {'params': self.weight_matrices.parameters()},
+            {'params': self.gcn1.parameters()},
+            {'params': self.user_dense.parameters()},
+            {'params': self.movie_dense.parameters()},
+        ], lr=self.lr)
 
     def training_step(self, train_batch, batch_idx):
         """
@@ -182,7 +193,7 @@ class GraphAttention(pl.LightningModule):
         pred = self.forward(ids)
 
         loss = self.loss(rows[mask].float(), pred[mask])
-        return loss
+        return loss, 0
 
     def validation_step(self, train_batch, batch_idx):
         """
@@ -191,10 +202,13 @@ class GraphAttention(pl.LightningModule):
         :param batch_num:
         :return:
         """
+        for i, x in enumerate(train_batch):
+            if x is not None:
+                train_batch[i] = x.to('cuda:0')
         ids, rows = train_batch  # we receive dense rows
         mask = rows != 0
         if self.user_mode:
             ids += self.n_items
         pred = self.forward(ids)
         loss = self.loss(rows[mask], pred[mask].float())
-        return loss
+        return loss, 0

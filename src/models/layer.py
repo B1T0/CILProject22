@@ -4,7 +4,10 @@ import torch.nn.functional as F
 
 
 class GraphConvolution(nn.Module):
-
+    """
+    Simple Graph Convolution layer employing propagation
+    through sparse matrix multiplication
+    """
     def __init__(self, in_features, out_features, dropout=0.2):
         super(GraphConvolution, self).__init__()
         self.in_features = in_features
@@ -15,14 +18,6 @@ class GraphConvolution(nn.Module):
         # self.reset_parameters()
 
     def forward(self, input, adj, weight):
-        # currently no batch support on sparse multiplication
-        # input = F.dropout(input, self.dropout, self.training)
-        # #support = torch.mm(input, self.weight.weight)
-        # support = self.weight(input)
-        # print(adj.size())
-        # print(support.size())
-        # output = torch.smm(adj, support)
-
         input = F.dropout(input, self.dropout, self.training)
         # support = torch.mm(input, self.weight.weight)
         support = input.mm(weight)
@@ -67,10 +62,7 @@ class GraphSelfAttentionLayer(nn.Module):
         return F.elu(h_prime)
 
     def _prepare_attentional_mechanism_input(self, Wh):
-        # Wh.shape (N, out_feature)
-        # self.a.shape (2 * out_feature, 1)
-        # Wh1&2.shape (N, 1)
-        # e.shape (N, N)
+
         Wh1 = torch.matmul(Wh, self.a[:self.out_features, :])
         Wh2 = torch.matmul(Wh, self.a[self.out_features:, :])
         # broadcast add

@@ -1,14 +1,12 @@
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import pandas as pd
-from src.models.GraphAutoencoder.layer import ScaledSigmoid
-from src.models.GraphAutoencoder.utils import normalize_adj, create_full_adjacency_matrix
-from src.models.GraphAutoencoder.layer import GraphConvolution
-import torch.nn.functional as F
+from src.models.layer import ScaledSigmoid
+from src.models.utils import normalize_adj, create_full_adjacency_matrix
+from src.models.layer import GraphConvolution
 
 
-#To Dos
+# To Dos
 # -introduce attention in aggregation
 # -add small user embedding not used for aggregation
 
@@ -24,7 +22,7 @@ class GraphAutoencoder(pl.LightningModule):
         self.lr = lr
         self.latent_dim = latent_dim
         self.in_features = latent_dim
-        self.out_features = latent_dim /2
+        self.out_features = latent_dim / 2
         self.embeddings = torch.nn.Embedding(
             num_embeddings=self.n, embedding_dim=self.latent_dim
         )
@@ -43,7 +41,8 @@ class GraphAutoencoder(pl.LightningModule):
             nn.init.xavier_uniform(self.weight_matrices[i])
 
         # GCN
-        self.gcn1 = [GraphConvolution(in_features=self.latent_dim, out_features=self.out_features, dropout=0.25) for _ in
+        self.gcn1 = [GraphConvolution(in_features=self.latent_dim, out_features=self.out_features, dropout=0.25) for _
+                     in
                      range(n_ratings)]
 
         self.gcn1 = nn.ModuleList(self.gcn1)
@@ -132,38 +131,18 @@ class GraphAutoencoder(pl.LightningModule):
         :return:
         """
         # x, y = train_batch  # item, ratings
+        for i, x in enumerate(train_batch):
+            if x is not None:
+                train_batch[i] = x.to(self.device)
+
         movies, users, ratings = train_batch
         # mask = torch.stack([movies, users], dim=1)
 
-        # mask = y != 0
-        # can rewrite sampling to be more efficient overall --> incclude only embeddings which will be learned
-        # x_embeddings = self.embeddings.weight[mask]
-        # x_embeddings[x] = self.embeddings(torch.tensor(x)) #use sparser embeddings for more efficiency
-        # x_embeddings = x_embeddings.to_sparse_coo()
-        # sparse implementation
-        # inp = torch.zeros(size=(self.n, self.latent_dim))
-        # mask = torch.zeros(size=(self.n ,self.latent_dim))
-
-        # for x in range(self.n_ratings):
-        #     crow_indices = self.adj[x].crow_indices()
-        #     col_indices = self.adj[x].crow_indices()
-        #     x_neighbors = col_indices[crow_indices[x], crow_indices[x+1]]
-        #     x_embeddings = self.embeddings(x_neighbors)
-        #     inp[x_neighbors] = x_embeddings
-        #     mask[x_neighbors] = 1
-
         output = self.forward(self.embeddings.weight, movies, users)
-        # print(ratings)
-        # print(self.target(ratings))
-        # print(output[movies, users])
-        # print(ratings.size())
-        # print(output.size())
         loss = self.loss(output.squeeze(), self.target(ratings))
         with torch.no_grad():
             # print(output[movies, users])
             eval = self.mse(self.evaluate(output.squeeze()), ratings.float())
-        # print(loss)
-        # print(eval)
         return loss, eval
 
     def validation_step(self, train_batch, batch_num):
@@ -173,46 +152,12 @@ class GraphAutoencoder(pl.LightningModule):
         :param batch_num:
         :return:
         """
+        for i, x in enumerate(train_batch):
+            if x is not None:
+                train_batch[i] = x.to(self.device)
         movies, users, ratings = train_batch
-        # mask = torch.stack([movies, users], dim=1)
-
-        # mask = y != 0
-        # can rewrite sampling to be more efficient overall --> incclude only embeddings which will be learned
-        # x_embeddings = self.embeddings.weight[mask]
-        # x_embeddings[x] = self.embeddings(torch.tensor(x)) #use sparser embeddings for more efficiency
-        # x_embeddings = x_embeddings.to_sparse_coo()
-        # sparse implementation
-        # inp = torch.zeros(size=(self.n, self.latent_dim))
-        # mask = torch.zeros(size=(self.n ,self.latent_dim))
-
-        # for x in range(self.n_ratings):
-        #     crow_indices = self.adj[x].crow_indices()
-        #     col_indices = self.adj[x].crow_indices()
-        #     x_neighbors = col_indices[crow_indices[x], crow_indices[x+1]]
-        #     x_embeddings = self.embeddings(x_neighbors)
-        #     inp[x_neighbors] = x_embeddings
-        #     mask[x_neighbors] = 1
-
         output = self.forward(self.embeddings.weight, movies, users)
-        # print(ratings)
-        # print(self.target(ratings))
-        # print(output[movies, users])
-        # print(ratings.size())
-        # print(output.size())
         loss = self.loss(output.squeeze(), self.target(ratings))
         with torch.no_grad():
             eval = self.mse(self.evaluate(output.squeeze()), ratings.float())
         return loss, eval
-
-    # def propagate(self):
-    #     users_emb = self.embedding_user.weight
-    #     items_emb = self.embedding_item.weight
-    #     emb = torch.cat([users_emb, items_emb])
-    #     embeddings = [emb]
-    #     for layer in range(self.n_layers):
-    #         emb = torch.sparse.mm(self.graph, emb)
-    #         embeddings.append(emb)
-    #     embeddings = torch.stack(embeddings, dim=1)
-    #     light_out = torch.mean(embeddings, dim=1)
-    #     users, items = torch.split(light_out, [self.n_users, self.n_items])
-    #     return users, items

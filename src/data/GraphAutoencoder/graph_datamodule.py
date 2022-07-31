@@ -14,7 +14,7 @@ class Graph_Dataset(Dataset):
     using torch.sparse.mm
     """
 
-    def __init__(self, file_path, n_users, n_items, edges=True):
+    def __init__(self, file_path, n_users, n_items):
         super(Graph_Dataset, self).__init__()
 
         print(file_path)
@@ -42,26 +42,13 @@ class Graph_Dataset(Dataset):
             indices_i.append(movie)
             indices_j.append(user)
             values.append(val)
-            # if not edges:
-            #     indices_i.append(movie)
-            #     indices_j.append(user + n_items)
-            #     values.append(val)
-            #
-            #     indices_i.append(user + n_items)
-            #     indices_j.append(movie)
-            #     values.append(val)
-            # else:
-            #     indices_i.append(movie)
-        # self.graph = torch.sparse_coo_tensor(torch.tensor([indices_i, indices_j]),
-        #                                      torch.tensor(values), size=[self.n, self.n]).coalesce().to_dense()
         self.movie_indices = torch.tensor(indices_i)
         self.user_indices = torch.tensor(indices_j)
         self.ratings = torch.tensor(values)
 
-        self.gm = torch.mean(self.ratings)
+        self.gm = torch.mean(self.ratings.float())
+
     def __len__(self):
-        # cahng
-        # return self.n
         return len(self.movie_indices)
 
     def __getitem__(self, idx):

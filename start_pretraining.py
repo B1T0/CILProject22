@@ -25,7 +25,7 @@ val_path = '/home/jimmy/CILProject22/data/raw/test_split_0.csv'
 EPOCH = 50
 bs = 16
 no_val = True
-=======
+
 import logging
 import sys
 print(torch.cuda.device_count())
@@ -40,7 +40,7 @@ EARLY_STOPPING = 15
 EMBEDDING_DIM = 100
 train_on_splits = False
 K = 2
->>>>>>> 3ab1061ff36ed993d4c725ae2f2423e9eccf2d35
+
 
 
 def train_model(log_dir, dataloader, val_dataloader = None, split = None):

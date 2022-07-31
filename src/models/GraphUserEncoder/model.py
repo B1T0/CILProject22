@@ -1,18 +1,16 @@
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import pandas as pd
-from src.models.GraphAutoencoder.layer import ScaledSigmoid
-from src.models.GraphALS.utils import left_normalize_adj, create_user_movie_adjancency_matrices
-from src.models.GraphAutoencoder.layer import GraphConvolution
-import torch.nn.functional as F
+from src.models.layer import ScaledSigmoid
+from src.models.utils import left_normalize_adj, create_user_movie_adjancency_matrices
+from src.models.layer import GraphConvolution
 
 
-class GraphAutoencoder(pl.LightningModule):
+class GraphUserEncoder(pl.LightningModule):
 
     def __init__(self, latent_dim, n_users, n_items, file_path, loss='MSE', accum='stack', mode='user_mode', lr=1e-4,
                  n_ratings=5, use_internal_embeddings = False):
-        super(GraphAutoencoder, self).__init__()
+        super(GraphUserEncoder, self).__init__()
         self.n_users = n_users
         self.n_items = n_items
         self.n = n_users + n_items
@@ -35,15 +33,9 @@ class GraphAutoencoder(pl.LightningModule):
             num_embeddings=self.n_users, embedding_dim=self.latent_dim
         )
 
-        #optional usage if we need to decouble things
-        # self.user_internal_embeddings = torch.nn.Embedding(
-        #     num_embeddings=self.n_users, embedding_dim=self.latent_dim
-        # )
-
         self.movie_embeddings = torch.nn.Embedding(
             num_embeddings=self.n_items, embedding_dim=self.latent_dim
         )
-
 
         self.own_embedding_dim = 10
         #add additional learned convolution weight
@@ -149,7 +141,11 @@ class GraphAutoencoder(pl.LightningModule):
         self.movie_embeddings.requires_grad_(True)
 
     def forward(self, idx):
+        """
 
+        :param idx: user/item ids of rows to be predicted
+        :return: row predictions
+        """
         if self.user_mode:
             output = []
             weight = [torch.zeros((int(self.in_features), int(self.out_features)), device=self.device).float()]
@@ -161,9 +157,8 @@ class GraphAutoencoder(pl.LightningModule):
             output = output[idx]
             if self.use_internal_embeddings:
                 output = torch.concat([output, self.user_embeddings[idx]], dim = 1)
-            # output = torch.relu(output.to_dense())
+
             output = torch.relu(output)
-            # print(output.size())
             output = self.user_dense(output)
         else:
             output = []
@@ -193,13 +188,16 @@ class GraphAutoencoder(pl.LightningModule):
         :param batch_num:
         :return:
         """
+        for i, x in enumerate(train_batch):
+            if x is not None:
+                train_batch[i] = x.to(self.device)
         # x, y = train_batch  # item, ratings
         ids, rows = train_batch #we receive dense rows
         mask = rows != 0
         pred = self.forward(ids)
 
         loss = self.loss(pred[mask].float(), rows[mask].float())
-        return loss
+        return loss, 0
 
     def validation_step(self, train_batch, batch_idx):
         """
@@ -208,8 +206,12 @@ class GraphAutoencoder(pl.LightningModule):
         :param batch_num:
         :return:
         """
+
+        for i, x in enumerate(train_batch):
+            if x is not None:
+                train_batch[i] = x.to(self.device)
         ids, rows = train_batch  # we receive dense rows
         mask = rows != 0
         pred = self.forward(ids)
         loss = self.loss(pred[mask].float(), rows[mask].float())
-        return loss
+        return loss, 0

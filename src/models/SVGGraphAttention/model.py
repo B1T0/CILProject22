@@ -1,21 +1,22 @@
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from src.models.GraphAutoencoder.layer import ScaledSigmoid, GraphSelfAttentionLayer
-from src.models.GraphAutoencoder.utils import create_full_adjacency_matrix
+
+from src.models.layer import ScaledSigmoid, GraphSelfAttentionLayer
+from src.models.utils import create_full_adjacency_matrix
 
 """
 This is an implementation of our proposed improvement upon SVD++ using a Graph Attention Layer
 """
 
 
-class GraphAttention(pl.LightningModule):
+class SVGGraphAttention(pl.LightningModule):
 
-    def __init__(self, latent_dim, n_users, n_items, file_path, global_mean, graph_hidden=32, hidden=32, alpha=0.2,
+    def __init__(self, latent_dim, n_users, n_items, file_path, global_mean,  alpha=0.2,
                  loss='MSE'
                  , lr=1e-4,
                  n_ratings=5, use_internal_embeddings=False, dropout=0.1):
-        super(GraphAttention, self).__init__()
+        super(SVGGraphAttention, self).__init__()
         self.gm = global_mean
         self.n_users = n_users
         self.n_items = n_items
@@ -28,7 +29,7 @@ class GraphAttention(pl.LightningModule):
 
         self.latent_dim = latent_dim
         self.in_features = latent_dim
-        self.out_features = graph_hidden
+        self.out_features = latent_dim
 
         # Embedding used for Graph Attention
         self.embeddings = torch.nn.Embedding(
@@ -36,11 +37,11 @@ class GraphAttention(pl.LightningModule):
         )
 
         self.movie_embeddings = torch.nn.Embedding(
-            num_embeddings=self.n_movies, embedding_dim=self.latent_dim
+            num_embeddings=self.n_items, embedding_dim=self.latent_dim
         )
 
         self.movie_bias = torch.nn.Embedding(
-            num_embeddings=self.n_movies, embedding_dim=1
+            num_embeddings=self.n_items, embedding_dim=1
         )
 
         self.user_embeddings = torch.nn.Embedding(
@@ -75,10 +76,14 @@ class GraphAttention(pl.LightningModule):
 
         self.activation = nn.ReLU()
 
-        self.accum = lambda x: torch.stack(x, dim=1).sum(dim=1)
-        self.intermediate = self.out_features
+        self.accum = lambda x: torch.concat(x, dim=1)
+        self.intermediate = self.out_features * self.n_rating
 
-        self.hidden = hidden
+        self.combine = nn.Sequential(
+            nn.Linear(int(self.intermediate), self.latent_dim),
+            nn.Linear(self.latent_dim, self.latent_dim),
+        )
+
 
         self.loss = loss
         if loss == 'MSE':
@@ -98,36 +103,42 @@ class GraphAttention(pl.LightningModule):
         # print(torch.nonzero(self.adjacency_matrix[0][idx]))
         movie_idx, user_idx = idx
 
-        user_idx_shifted = user_idx + self.n_items
-        rows = torch.nonzero(self.adjacency_matrix[0][user_idx_shifted])[:, 1]
-        # print(idx)
-        mask = []
-        for _, i in enumerate(user_idx_shifted):
-            # print(i.size())
-            # print(rows.size())
-            # also works because of bi partiteness
-            mask.append(torch.nonzero((rows == i), as_tuple=True)[0])
-        mask = torch.concat(mask)
-        # print(mask)
-        # subsampled_adjacency = self.adjacency_matrix[0][rows][:, rows]
-        # print(subsampled_adjacency)
-        # print(subsampled_adjacency.size())
-        # print(self.embeddings(rows).size())
+        #unique ids needed for masking to work
+        user_idx_shifted, inverse_index = torch.unique(user_idx, sorted=False, return_inverse=True)
+        user_idx_shifted = user_idx_shifted + self.n_items
+
         output = []
         weight = [torch.zeros((int(self.in_features), int(self.out_features)), device=self.device)]
         # graph attention convolution
+        masks = []
         for i in range(self.n_rating):
+            rows = torch.nonzero(self.adjacency_matrix[i][user_idx_shifted])[:, 1]
             weight.append(self.weight_matrices[i] + weight[-1])
-            output.append(self.gcn1[i](self.embeddings(rows), self.adjacency_matrix[i][rows][:, rows], weight[-1]))
+            mask = []
+            for _, j in enumerate(user_idx_shifted):
+                # print(i.size())
+                # print(rows.size())
+                # also works because of bi partiteness
+                mask.append(torch.nonzero(rows == j, as_tuple=True)[0])
+            masks.append(torch.concat(mask))
+            convoluted = self.gcn1[i](self.embeddings(rows), self.adjacency_matrix[i][rows][:, rows], weight[-1])
+            output.append((convoluted[torch.concat(mask)])[inverse_index])
 
         user_emb_sum = self.accum(output)
-        user_emb_sum = user_emb_sum[mask]
-        user_emb = self.user_embeddings(user_idx - self.n_items)
+        user_emb_sum = self.combine(user_emb_sum)
+        #print(user_emb_sum.size())
+        #user_emb_sum = user_emb_sum[mask]
+        user_emb = self.user_embeddings(user_idx)
+        #print(user_emb.size())
         movie_emb = self.movie_embeddings(movie_idx)
-        b_u = self.user_bias(user_idx - self.n_items)
+        #print(movie_emb.size())
+        b_u = self.user_bias(user_idx)
+        #print(b_u.size())
         b_m = self.movie_bias(movie_idx)
-        pred_r_ui = torch.sum((user_emb + user_emb_sum) * movie_emb, dim=1) + \
-                    torch.squeeze(b_u) + torch.squeeze(b_m) + self.gm
+        #print(b_m.size())
+        t = torch.sum((user_emb + user_emb_sum) * movie_emb, dim=1)
+        # t += torch.squeeze(b_u) + torch.squeeze(b_m)
+        pred_r_ui = t + self.gm
 
         return pred_r_ui
 
@@ -144,8 +155,8 @@ class GraphAttention(pl.LightningModule):
         for i, x in enumerate(train_batch):
             train_batch[i] = x.to('cuda:0')
         # x, y = train_batch  # item, ratings
-        ids, ratings = train_batch
-        pred = self.forward(ids)
+        movie_ids, user_ids, ratings = train_batch
+        pred = self.forward((movie_ids, user_ids))
         loss = self.loss(pred, ratings.float())
         return loss, 0
 
@@ -159,7 +170,7 @@ class GraphAttention(pl.LightningModule):
         for i, x in enumerate(train_batch):
             if x is not None:
                 train_batch[i] = x.to('cuda:0')
-        ids, ratings = train_batch
-        pred = self.forward(ids)
+        movie_ids, user_ids, ratings = train_batch
+        pred = self.forward((movie_ids, user_ids))
         loss = self.loss(pred, ratings.float())
         return loss, 0

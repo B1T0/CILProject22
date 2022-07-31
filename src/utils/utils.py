@@ -1,3 +1,6 @@
+import logging
+
+import torch
 from tqdm import tqdm
 
 
@@ -50,7 +53,7 @@ def train_model(model, scheduler, optimizer, log_dir, dataloader, val_dataloader
                         'loss': train_loss
                     }, log_dir + f'/model_best_{split}.pth')
         scheduler.step()
-        if epoch % save_period == 0:
+        if epoch % save_period == 0 and epoch > 0:
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),

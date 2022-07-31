@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, Dataset, IterableDataset
 import pandas as pd
 
 
-class Graph_Dataset(Dataset):
+class RowDataset(Dataset):
     """
     while theoretically an iterable dataset, abusing Dataset API
     works out to smoother implementation
@@ -14,14 +14,17 @@ class Graph_Dataset(Dataset):
     using torch.sparse.mm
     """
 
-    def __init__(self, file_path, n_items, n_users, user=True):
-        super(Graph_Dataset, self).__init__()
+    def __init__(self, file_path, n_items, n_users, user='user_mode'):
+        super(RowDataset, self).__init__()
 
         print(file_path)
         self.df = pd.read_csv(str(file_path))
 
         # self.graph = torch.sparse_coo_tensor()
-        self.user = user
+        if user == 'user_mode':
+            self.user = True
+        else:
+            self.user = False
         print(f'Dataset user mode: {user}')
         #gives out users
         self.len = len(self.df)

@@ -5,42 +5,35 @@ import time
 
 import torch
 from torch.utils.data import DataLoader
-from tqdm import tqdm
-from utils import train_model
-from src.data.GraphALS.graph_datamodule import Graph_Dataset
+
+from src.data.RowDataset.graph_datamodule import Graph_Dataset
 from src.models.GraphAttention.model import GraphAttention
 from src.utils.logger import Logger, log
-
-print(f'Available Cuda Devices {torch.cuda.device_count()}')
+from src.utils.utils import train_model
 
 path = '/home/jimmy/CILProject22/data/raw/train_split_'
 # test only
-#path = '/home/jimmy/CILProject22/data/raw/test_split_'
 val_path = '/home/jimmy/CILProject22/data/raw/test_split_'
-FINETUNING = False
 SAVED_DIR = '/home/jimmy/CILProject22/reports/logs/20220729-130520_graph_attention_split_2-2_128_0.2_48_64_movie_mode'
 LOSS = 'MSE'
 TRAIN_MODE = "user_mode"  # defining user as movie embeddings and recreating user rows
 # TRAIN_MODE = "movie_mode"
-# TRAIN_MODE = "alternating"
 
-NUM_SPLITS = 5
-EPOCH = 500
-bs = 32
+EPOCH = 300
+bs = 8
 EARLY_STOPPING = 40
-EMBEDDING_DIM = 64
-GRAPH_HIDDEN = 32
-HIDDEN = 32
+EMBEDDING_DIM = 64  # 128 #64
+GRAPH_HIDDEN = 32  # 64
+HIDDEN = 32  # 64
 ALPHA = 0.2
-STEP_SIZE_SCHEDULER = 50
+STEP_SIZE_SCHEDULER = 70
 STEP_SIZE_START = 50
 train_on_splits = True
 lr = 1e-4
-DROPOUT = 0.0
+DROPOUT = 0.2
 
 MODEL_SAVE = 50
-SAVE_EPOCH = 50
-SPLIT_START = 2
+SAVE_EPOCH = 200
 
 
 def train_model_splits(log_dir, file_path, dataloader, user_mode=True, val_dataloader=None, split=None):
@@ -55,8 +48,6 @@ def train_model_splits(log_dir, file_path, dataloader, user_mode=True, val_datal
     if FINETUNING:
         log(f'Loading pretrained models')
         model_path = SAVED_DIR + f'/model_best_{split}.pth'
-        # print("Using hardcoded model path")
-        # model_path = '/home/jimmy/CILProject22/reports/logs/20220729-003141_graph_attention_128_0.2_64_64_movie_mode/model_30_0.pth'
         checkpoint = torch.load(model_path)
         model.load_state_dict(checkpoint['model_state_dict'])
 
@@ -65,7 +56,9 @@ def train_model_splits(log_dir, file_path, dataloader, user_mode=True, val_datal
     optimizer = model.configure_optimizers()
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=STEP_SIZE_SCHEDULER, gamma=0.3, verbose=True)
 
-    train_model(model, optimizer, scheduler, log_dir, dataloader, val_dataloader, split, SA)
+    val_loss = train_model(model, scheduler, optimizer, log_dir, dataloader, val_dataloader, split, SAVE_EPOCH,
+                           EARLY_STOPPING, EPOCH)
+    return val_loss
 
 
 def train_model_alternating(log_dir, file_path, dataloader_user, dateloader_movie, user_mode=True,
@@ -114,7 +107,7 @@ def main():
             best_losses.append(best_val_loss)
             log("Waiting to prevent memory issues")
             time.sleep(10)
-        log(f'Best Val Losses : {best_losses} avg {sum(best_losses) / (NUM_SPLITS-SPLIT_START)}')
+        log(f'Best Val Losses : {best_losses} avg {sum(best_losses) / (NUM_SPLITS - SPLIT_START)}')
 
 
 if __name__ == "__main__":

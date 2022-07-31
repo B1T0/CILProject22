@@ -1,6 +1,6 @@
 import pytorch_lightning as pl
 import torch
-from util import get_model
+from model_loader import get_model
 
 
 class Trainer:
