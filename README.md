@@ -115,7 +115,7 @@ To compute the blending, copy the per-split predictions for the test splits as `
 |--------------------------------|----------------------------|-------------------|
 | General Baseline (SVD + ALS)   | -                          | 0.98777           |
 | SVD                            | 1.0509                     | 1.0449            |
-| SVD++^*                        | 0.9971                     | 0.9960            |
+| SVD++                          | 0.9971                     | 0.9960            |
 | ALS                            | 0.9877                     | 0.9891            |
 | Mixture-of-Tastes              | 0.9896                     | 0.9835            |
 | Bias SGD                       | 0.9832                     | 0.9779            |
