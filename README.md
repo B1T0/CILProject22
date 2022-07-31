@@ -1,11 +1,11 @@
 # CILProject22
 
 ##### Table of Contents  
-#### 1. Introduction 
-#### 2. Models
-### ALS 
-### SVD 
-### NCF
+### 1. Introduction 
+### 2. Models
+# ALS 
+# SVD 
+# NCF
 
 
 
