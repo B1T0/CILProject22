@@ -113,18 +113,18 @@ To compute the blending, copy the per-split predictions for the test splits as `
 # 3. Results
 | Model                          | RMSE (Training: 5-fold CV) | RMSE (Submission) |
 |--------------------------------|----------------------------|-------------------|
-| Kaggle Baseline (SVD + ALS)    | -                          | 0.9878            |
+| General Baseline (SVD + ALS)   | -                          | 0.98777           |
 | SVD                            | 1.0509                     | 1.0449            |
-| SVD++                          | 0.9971                     | 0.9960            |
+| SVD++^*                        | 0.9971                     | 0.9960            |
 | ALS                            | 0.9877                     | 0.9891            |
 | Mixture-of-Tastes              | 0.9896                     | 0.9835            |
 | Bias SGD                       | 0.9832                     | 0.9779            |
 | NCF                            | 0.9864                     | 0.9815            |
 | Autoencoder (item)             | 0.9959                     | 0.9838            |
 | Autoencoder (user)             | 0.9627                     | 0.9768            |
-| Dual Embedding                 | X                          | X                 |
+| % Dual Embedding               | X                          | X                 |
 | Graph-Encoder                  | 0.9813                     | 0.9827            |
 | Graph-User-Encoder             | 0.9900                     | 0.9863            |
 | Graph-User-Encoder (Attention) | 1.0063                     | 1.0089            |
-| Graph-Encoder (Attention)      | 1.0617                     | -                 |
+| Graph-SVD++                    | 1.0617                     | -                 |
 | Ensemble                       | -                          | 0.9738            |
