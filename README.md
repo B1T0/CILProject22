@@ -122,7 +122,6 @@ To compute the blending, copy the per-split predictions for the test splits as `
 | NCF                            | 0.9864                     | 0.9815            |
 | Autoencoder (item)             | 0.9959                     | 0.9838            |
 | Autoencoder (user)             | 0.9627                     | 0.9768            |
-| % Dual Embedding               | X                          | X                 |
 | Graph-Encoder                  | 0.9813                     | 0.9827            |
 | Graph-User-Encoder             | 0.9900                     | 0.9863            |
 | Graph-User-Encoder (Attention) | 1.0063                     | 1.0089            |
